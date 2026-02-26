@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Sonnenkarte Winterthur</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --amber: #F59E0B;
+  --amber-light: #FDE68A;
+  --amber-dim: rgba(245,158,11,0.15);
+  --bg: #0C0E16;
+  --surface: rgba(18,21,35,0.96);
+  --surface2: rgba(26,30,50,0.98);
+  --border: rgba(255,255,255,0.08);
+  --border-amber: rgba(245,158,11,0.3);
+  --muted: #5A6480;
+  --text: #EEF2FF;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%; height: 100dvh;
+  overflow: hidden;
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── FULL-SCREEN MAP ─────────────────────────────────── */
+#map {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+#shadow-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.15s ease;
+}
+
+/* ── TOP BAR ─────────────────────────────────────────── */
+#topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top, 12px));
+  background: linear-gradient(to bottom, rgba(12,14,22,0.92) 0%, rgba(12,14,22,0) 100%);
+  pointer-events: none;
+}
+
+.logo {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--amber);
+  pointer-events: all;
+}
+.logo span {
+  font-family: 'Outfit', sans-serif;
+  font-style: normal;
+  font-size: 0.6rem;
+  color: var(--muted);
+  display: block;
+  font-weight: 300;
+  margin-top: -2px;
+}
+
+.wx-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 11px;
+  font-size: 0.72rem;
+  color: var(--text);
+  pointer-events: all;
+  backdrop-filter: blur(12px);
+}
+.live-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: blink 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ── MAP LAYER TOGGLES (floating, left side) ─────────── */
+#layer-btns {
+  position: fixed;
+  left: 12px;
+  bottom: 200px; /* will be overridden by JS based on panel height */
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12, 14, 24, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 10px 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+.layer-btn .btn-icon { font-size: 1.1rem; line-height: 1; }
+.layer-btn .btn-label { line-height: 1.1; }
+.layer-btn .btn-state {
+  font-size: 0.58rem;
+  color: var(--muted);
+  display: block;
+  margin-top: 1px;
+}
+
+/* Active shadow button */
+.layer-btn.active {
+  border-color: rgba(245,158,11,0.5);
+  color: var(--amber);
+  background: rgba(12, 14, 24, 0.95);
+}
+
+/* Active sun button — stays dark bg so it's always readable */
+.layer-btn.active.sun-active {
+  background: rgba(12, 14, 24, 0.95);
+  border-color: var(--amber);
+  border-width: 1.5px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.3);
+  color: var(--amber-light);
+}
+.layer-btn.active.sun-active .btn-state { color: rgba(253,230,138,0.7); }
+
+/* Inactive = clearly off */
+.layer-btn:not(.active) {
+  color: #3a4060;
+  border-color: rgba(255,255,255,0.06);
+  background: rgba(12,14,24,0.75);
+}
+.layer-btn:not(.active) .btn-state { color: #3a4060; }
+
+/* ── BOTTOM SHEET ────────────────────────────────────── */
+#sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 200;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 0 16px;
+  padding-bottom: max(16px, var(--safe-bottom));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+}
+
+/* Drag handle */
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  margin: 10px auto 14px;
+}
+
+/* Sun status row */
+#sun-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+#sun-emoji-big { font-size: 2rem; line-height: 1; flex-shrink: 0; }
+
+.sun-text { flex: 1; min-width: 0; }
+#sun-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--amber);
+  line-height: 1.1;
+}
+#sun-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+.sun-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.sun-meta-item { font-size: 0.68rem; color: var(--muted); }
+.sun-meta-item strong { color: var(--text); font-weight: 500; }
+
+/* Time display + slider */
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.time-display {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  color: var(--amber);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+.time-display small {
+  font-size: 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  color: var(--muted);
+  margin-left: 3px;
+}
+
+/* Date button */
+#date-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  white-space: nowrap;
+  position: relative;
+}
+#date-btn:active { background: var(--surface2); }
+#date-input-hidden {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  font-size: 16px; /* prevents iOS zoom */
+}
+
+/* Now button */
+#now-btn {
+  background: var(--amber-dim);
+  border: 1px solid var(--border-amber);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--amber);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#now-btn:active { background: rgba(245,158,11,0.25); }
+
+/* Slider */
+.slider-wrap {
+  position: relative;
+  padding: 4px 0;
+  margin-bottom: 6px;
+}
+.slider-track-bg {
+  position: absolute;
+  left: 0; top: 50%; transform: translateY(-50%);
+  width: 100%; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg,
+    #07080f 0%,#07080f 20%,
+    #1b3660 27%,#89c4e1 36%,
+    #ffe88a 50%,#f59e0b 58%,
+    #e05a1a 68%,#1b2f60 77%,
+    #07080f 85%);
+  pointer-events: none;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 36px; /* big touch target */
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  z-index: 2;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 3px solid #0c0e16;
+  box-shadow: 0 0 0 1.5px var(--amber), 0 2px 12px rgba(245,158,11,0.6);
+  cursor: grab;
+  margin-top: -11px;
+}
+input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: transparent; }
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--amber); border: 3px solid #0c0e16;
+  box-shadow: 0 0 0 1.5px var(--amber);
+}
+input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
+
+.time-marks {
+  display: flex; justify-content: space-between;
+  color: var(--muted); font-size: 0.5rem; opacity: 0.5;
+}
+
+/* ── LOADING ─────────────────────────────────────────── */
+#loading {
+  position: fixed; inset: 0;
+  background: rgba(10,12,20,0.95);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px; z-index: 9999;
+  transition: opacity 0.5s, visibility 0.5s;
+}
+#loading.gone { opacity: 0; visibility: hidden; }
+.spinner {
+  width: 48px; height: 48px;
+  border: 2px solid rgba(245,158,11,.12);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-title { font-size: .95rem; color: var(--text); font-weight: 500; }
+.load-sub { font-size: .72rem; color: var(--muted); }
+.load-hint { font-size: .65rem; color: var(--muted); opacity:.6; margin-top:4px; }
+
+/* ── SEARCH BOX ──────────────────────────────────────── */
+#search-wrap {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  width: min(420px, calc(100vw - 24px));
+}
+#search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12,14,24,0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  transition: border-color 0.2s;
+}
+#search-box:focus-within { border-color: rgba(245,158,11,0.5); }
+#search-icon { font-size: 1rem; flex-shrink:0; opacity:0.5; }
+#search-input {
+  flex:1; background:none; border:none; outline:none;
+  color: var(--text); font-family:'Outfit',sans-serif;
+  font-size:0.9rem; min-width:0;
+}
+#search-input::placeholder { color: var(--muted); }
+#search-clear {
+  background:none; border:none; color:var(--muted);
+  font-size:1rem; cursor:pointer; padding:0 2px;
+  flex-shrink:0; display:none; line-height:1;
+}
+#search-clear.visible { display:block; }
+
+#search-results {
+  margin-top: 6px;
+  background: rgba(12,14,24,0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+}
+#search-results.visible { display:block; }
+
+.result-item {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 14px; cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  transition: background 0.15s;
+}
+.result-item:last-child { border-bottom:none; }
+.result-item:hover, .result-item:active { background:rgba(245,158,11,0.08); }
+.result-icon { font-size:1rem; flex-shrink:0; opacity:0.7; }
+.result-text { flex:1; min-width:0; }
+.result-name { font-size:0.84rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.result-sub  { font-size:0.65rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+.result-msg  { padding:14px; text-align:center; color:var(--muted); font-size:0.78rem; }
+
+/* ── LEAFLET OVERRIDES ───────────────────────────────── */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: none !important;
+}
+.leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  width: 36px !important; height: 36px !important;
+  line-height: 36px !important;
+  font-size: 1.1rem !important;
+  backdrop-filter: blur(12px);
+}
+.leaflet-control-zoom a:hover { background: var(--surface2) !important; }
+.leaflet-control-attribution { display: none !important; }
+
+/* ── INFO PILL (top of map, mobile hidden) ───────────── */
+#info-pill {
+  position: fixed;
+  top: 60px; left: 50%; transform: translateX(-50%);
+  z-index: 90;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.68rem; color: var(--muted);
+  pointer-events: none; white-space: nowrap;
+}
+#info-pill strong { color: var(--amber-light); font-weight: 500; }
+
+/* ── LEGEND ──────────────────────────────────────────── */
+#legend {
+  position: fixed;
+  bottom: 16px; right: 12px;
+  z-index: 90;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.65rem;
+}
+.leg-title { color:var(--muted);font-size:.55rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px; }
+.leg-row { display:flex;align-items:center;gap:8px;margin-bottom:4px; }
+.leg-row:last-child{margin-bottom:0;}
+.leg-sw { width:14px;height:9px;border-radius:2px;flex-shrink:0; }
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (min-width: 640px) {
+  /* Desktop: info pill visible */
+  #info-pill { top: 60px; }
+  .layer-btn { font-size: 0.78rem; padding: 10px 15px; }
+}
+
+@media (max-width: 639px) {
+  /* Mobile: hide info pill (data shown in sheet instead) */
+  #info-pill { display: none; }
+  #legend { display: none; }
+  .time-display { font-size: 1.6rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- FULL SCREEN MAP -->
+<div id="map"></div>
+<canvas id="shadow-canvas"></canvas>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">
+    Sonnenkarte
+    <span>8400 Winterthur</span>
+  </div>
+  <div class="wx-badge">
+    <span class="live-dot"></span>
+    <span>8.7°C · ☀️ Mostly Sunny</span>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div id="search-wrap">
+  <div id="search-box">
+    <span id="search-icon">🔍</span>
+    <input id="search-input" type="text" placeholder="Strasse, Park, Ort suchen…" autocomplete="off" autocorrect="off" spellcheck="false"/>
+    <button id="search-clear" onclick="clearSearch()">✕</button>
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<!-- LAYER TOGGLE BUTTONS -->
+<div id="layer-btns">
+  <button class="layer-btn" id="shadow-toggle" onclick="toggleShadows()">
+    <span class="btn-icon">🏢</span>
+    <div class="btn-label">
+      Schatten
+      <span class="btn-state" id="shadow-state">Aus</span>
+    </div>
+  </button>
+  <button class="layer-btn active sun-active" id="sun-toggle" onclick="toggleSunHighlight()">
+    <span class="btn-icon">☀️</span>
+    <div class="btn-label">
+      Sonne
+      <span class="btn-state" id="sun-state">Ein</span>
+    </div>
+  </button>
+</div>
+
+<!-- INFO PILL (desktop) -->
+<div id="info-pill">
+  <span>☀ <strong id="p-el">—</strong></span>
+  <span>→ <strong id="p-az">—</strong></span>
+  <span>↑ <strong id="p-rise">—</strong></span>
+  <span>↓ <strong id="p-set">—</strong></span>
+  <span>🏢 <strong id="p-bldg">—</strong></span>
+</div>
+
+<!-- LEGEND (desktop) -->
+<div id="legend">
+  <div class="leg-title">Legende</div>
+  <div class="leg-row">
+    <div class="leg-sw" style="background:rgba(255,222,20,0.5);border:1px solid rgba(245,200,30,0.8)"></div>
+    Direkte Sonne
+  </div>
+  <div class="leg-row">
+    <div class="leg-sw" style="background:rgba(12,20,75,0.75)"></div>
+    Gebäudeschatten
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-title">Gebäudedaten werden geladen</div>
+  <div class="load-sub" id="load-sub">Verbinde mit OpenStreetMap…</div>
+  <div class="load-hint">Winterthur · ~8000 Gebäude</div>
+</div>
+
+<!-- BOTTOM SHEET -->
+<div id="sheet">
+  <div class="sheet-handle"></div>
+
+  <!-- Sun status -->
+  <div id="sun-status-row">
+    <div id="sun-emoji-big">🌤️</div>
+    <div class="sun-text">
+      <div id="sun-label">Gute Sonne</div>
+      <div id="sun-sub">Moderate Schatten · <span id="clock">--:--</span> Uhr</div>
+    </div>
+    <div class="sun-meta">
+      <div class="sun-meta-item">↑ <strong id="sc-rise">—</strong></div>
+      <div class="sun-meta-item">↓ <strong id="sc-set">—</strong></div>
+    </div>
+  </div>
+
+  <!-- Time controls -->
+  <div class="time-row">
+    <div class="time-display" id="time-val">12:00<small>Uhr</small></div>
+    <button id="now-btn" onclick="goNow()">⏱ Jetzt</button>
+    <button id="date-btn">
+      📅 <span id="date-display">Heute</span>
+      <input type="date" id="date-input-hidden"/>
+    </button>
+  </div>
+
+  <!-- Slider -->
+  <div class="slider-wrap">
+    <div class="slider-track-bg"></div>
+    <input type="range" id="time-slider" min="0" max="1439" value="720" step="5"/>
+  </div>
+  <div class="time-marks">
+    <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────
+const LAT = 47.4988, LNG = 8.7269;
+const BBOX = '47.485,8.705,47.515,8.750';
+
+// ── MAP ───────────────────────────────────────────────
+const map = L.map('map', {
+  center: [LAT, LNG], zoom: 15,
+  zoomControl: false,
+  attributionControl: false
+});
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd'
+}).addTo(map);
+
+// ── CANVAS ────────────────────────────────────────────
+const canvas = document.getElementById('shadow-canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); positionLayerBtns(); scheduleRender(); });
+
+// ── UTILS ─────────────────────────────────────────────
+const R2D = r => r * 180 / Math.PI;
+const D2R = d => d * Math.PI / 180;
+const pad = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
+const fmtMin = m => `${pad(m/60)}:${pad(m%60)}`;
+const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+function geoToCanvas(lat, lng) {
+  const p = map.latLngToContainerPoint(L.latLng(lat, lng));
+  return [p.x, p.y];
+}
+function movePoint(lat, lng, bearingDeg, meters) {
+  const R=6371000, d=meters/R, b=D2R(bearingDeg);
+  const φ1=D2R(lat), λ1=D2R(lng);
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(d)+Math.cos(φ1)*Math.sin(d)*Math.cos(b));
+  const λ2=λ1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(φ1),Math.cos(d)-Math.sin(φ1)*Math.sin(φ2));
+  return [R2D(φ2), R2D(λ2)];
+}
+
+// ── LAYER BUTTON POSITIONING ──────────────────────────
+function positionLayerBtns() {
+  const sheet = document.getElementById('sheet');
+  const btns  = document.getElementById('layer-btns');
+  const sheetH = sheet.offsetHeight;
+  btns.style.bottom = (sheetH + 12) + 'px';
+}
+
+// ── BUILDINGS ─────────────────────────────────────────
+let buildings = [];
+let shadowsOn = false;
+let sunHighlightOn = true;
+
+async function loadBuildings() {
+  const q = `[out:json][timeout:30];(way["building"](${BBOX}););out body;>;out skel qt;`;
+  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+
+  const nodes = {};
+  for (const el of data.elements)
+    if (el.type==='node') nodes[el.id]=[el.lat,el.lon];
+
+  for (const el of data.elements) {
+    if (el.type==='way' && el.tags?.building) {
+      const ring = (el.nodes||[]).map(id=>nodes[id]).filter(Boolean);
+      if (ring.length < 3) continue;
+      const t = el.tags;
+      const h = t['building:levels'] ? parseFloat(t['building:levels'])*3.2
+              : t['height']          ? parseFloat(t['height'])
+              : 8;
+      buildings.push({ ring, h });
+    }
+  }
+  document.getElementById('p-bldg').textContent = buildings.length.toLocaleString();
+}
+
+// ── TOGGLES ───────────────────────────────────────────
+function toggleShadows() {
+  shadowsOn = !shadowsOn;
+  const btn = document.getElementById('shadow-toggle');
+  const state = document.getElementById('shadow-state');
+  btn.classList.toggle('active', shadowsOn);
+  state.textContent = shadowsOn ? 'Ein' : 'Aus';
+  scheduleRender();
+}
+
+function toggleSunHighlight() {
+  sunHighlightOn = !sunHighlightOn;
+  const btn = document.getElementById('sun-toggle');
+  const state = document.getElementById('sun-state');
+  btn.classList.toggle('active', sunHighlightOn);
+  btn.classList.toggle('sun-active', sunHighlightOn);
+  state.textContent = sunHighlightOn ? 'Ein' : 'Aus';
+  scheduleRender();
+}
+
+// ── RENDER ────────────────────────────────────────────
+let renderPending = false;
+function scheduleRender() {
+  if (!renderPending) {
+    renderPending = true;
+    requestAnimationFrame(() => { renderPending=false; render(); });
+  }
+}
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const dt = getDateTime();
+  const pos = SunCalc.getPosition(dt, LAT, LNG);
+  const altDeg = R2D(pos.altitude);
+  const azCompass = (R2D(pos.azimuth)+180+360)%360;
+  const shadowDir = (azCompass+180)%360;
+
+  if (altDeg < -8) {
+    ctx.fillStyle = 'rgba(4,5,18,0.82)';
+    ctx.fillRect(0,0,W,H);
+    return;
+  }
+  if (altDeg < 0) {
+    const t = Math.min(1, -altDeg/8);
+    ctx.fillStyle = `rgba(4,5,18,${(t*0.55).toFixed(2)})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  if ((!shadowsOn && !sunHighlightOn) || buildings.length===0 || altDeg < 1) return;
+
+  const mult = Math.min(1/Math.tan(Math.max(pos.altitude, D2R(1))), 20);
+
+  // Build binary shadow mask
+  const off = new OffscreenCanvas(W, H);
+  const octx = off.getContext('2d');
+  octx.fillStyle = '#000';
+
+  for (const bld of buildings) {
+    const shadowLen = bld.h * mult;
+    if (shadowLen < 0.3) continue;
+    const basePx = bld.ring.map(([la,ln]) => geoToCanvas(la,ln));
+    const extPx  = bld.ring.map(([la,ln]) => {
+      const [el,elng] = movePoint(la,ln,shadowDir,shadowLen);
+      return geoToCanvas(el,elng);
+    });
+    if (!basePx.length) continue;
+
+    // Shadow volume
+    octx.beginPath();
+    octx.moveTo(basePx[0][0],basePx[0][1]);
+    for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
+    for (let i=extPx.length-1;i>=0;i--) octx.lineTo(extPx[i][0],extPx[i][1]);
+    octx.closePath(); octx.fill();
+
+    // Building footprint
+    octx.beginPath();
+    octx.moveTo(basePx[0][0],basePx[0][1]);
+    for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
+    octx.closePath(); octx.fill();
+  }
+
+  // Step 1: Sun highlight (bright yellow, excluding shadows)
+  if (sunHighlightOn) {
+    const a = altDeg > 35 ? 0.50 : altDeg > 20 ? 0.40 : altDeg > 8 ? 0.30 : 0.18;
+    const s = new OffscreenCanvas(W,H);
+    const sc = s.getContext('2d');
+    sc.fillStyle = `rgba(255,222,20,${a})`;
+    sc.fillRect(0,0,W,H);
+    sc.globalCompositeOperation = 'destination-out';
+    sc.drawImage(off,0,0);
+    ctx.drawImage(s,0,0);
+  }
+
+  // Step 2: Shadow overlay (blue-navy, only on shadow areas)
+  if (shadowsOn) {
+    const a = altDeg > 35 ? 0.72 : altDeg > 20 ? 0.62 : altDeg > 10 ? 0.52 : 0.40;
+    const t = new OffscreenCanvas(W,H);
+    const tc = t.getContext('2d');
+    tc.fillStyle = `rgba(12,20,75,${a})`;
+    tc.fillRect(0,0,W,H);
+    tc.globalCompositeOperation = 'destination-in';
+    tc.drawImage(off,0,0);
+    ctx.drawImage(t,0,0);
+  }
+}
+
+// ── DATE / TIME ───────────────────────────────────────
+function getDateTime() {
+  const mins = parseInt(document.getElementById('time-slider').value);
+  const [y,mo,d] = document.getElementById('date-input-hidden').value.split('-').map(Number);
+  return new Date(y, mo-1, d, Math.floor(mins/60), mins%60, 0);
+}
+
+function formatDateDisplay(dateStr) {
+  const [y,mo,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, mo-1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((dt - today) / 86400000);
+  if (diff === 0) return 'Heute';
+  if (diff === 1) return 'Morgen';
+  if (diff === -1) return 'Gestern';
+  return dt.toLocaleDateString('de-CH', { day:'numeric', month:'short' });
+}
+
+function update() {
+  const mins = parseInt(document.getElementById('time-slider').value);
+  document.getElementById('time-val').innerHTML = `${fmtMin(mins)}<small>Uhr</small>`;
+
+  const dt = getDateTime();
+  const pos = SunCalc.getPosition(dt, LAT, LNG);
+  const times = SunCalc.getTimes(dt, LAT, LNG);
+  const altDeg = R2D(pos.altitude);
+  const azDeg  = (R2D(pos.azimuth)+180+360)%360;
+
+  document.getElementById('p-el').textContent   = altDeg.toFixed(1)+'°';
+  document.getElementById('p-az').textContent   = azDeg.toFixed(0)+'°';
+  document.getElementById('p-rise').textContent = fmtTime(times.sunrise);
+  document.getElementById('p-set').textContent  = fmtTime(times.sunset);
+  document.getElementById('sc-rise').textContent = fmtTime(times.sunrise);
+  document.getElementById('sc-set').textContent  = fmtTime(times.sunset);
+
+  let emoji, label, sub;
+  if      (altDeg < -18) { emoji='🌑'; label='Tiefe Nacht';       sub='Keine Sonne'; }
+  else if (altDeg <  -6) { emoji='🌌'; label='Dämmerung';         sub='Kein direktes Licht'; }
+  else if (altDeg <   0) { emoji='🌅'; label='Dämmerung';          sub='Diffuses Licht'; }
+  else if (altDeg <   6) { emoji='🌄'; label='Auf-/Untergang';     sub='Sehr lange Schatten'; }
+  else if (altDeg <  20) { emoji='🌤️'; label='Tiefe Sonne';        sub='Lange Schatten'; }
+  else if (altDeg <  40) { emoji='☀️'; label='Gute Sonne';          sub='Moderate Schatten'; }
+  else                   { emoji='🌞'; label='Hochsonne';           sub='Kaum Schatten'; }
+
+  document.getElementById('sun-emoji-big').textContent = emoji;
+  document.getElementById('sun-label').textContent = label;
+
+  // Update sub with clock inline
+  const clockEl = document.getElementById('clock');
+  document.getElementById('sun-sub').innerHTML = `${sub} · <span id="clock">${clockEl ? clockEl.textContent : '--:--'}</span> Uhr`;
+
+  scheduleRender();
+}
+
+function goNow() {
+  const n = new Date();
+  document.getElementById('time-slider').value = n.getHours()*60+n.getMinutes();
+  const iso = n.toISOString().split('T')[0];
+  document.getElementById('date-input-hidden').value = iso;
+  document.getElementById('date-display').textContent = 'Heute';
+  update();
+}
+
+// ── INIT ──────────────────────────────────────────────
+const today = new Date();
+const iso = today.toISOString().split('T')[0];
+document.getElementById('date-input-hidden').value = iso;
+document.getElementById('date-display').textContent = 'Heute';
+document.getElementById('time-slider').value = today.getHours()*60+today.getMinutes();
+
+document.getElementById('time-slider').addEventListener('input', update);
+
+document.getElementById('date-input-hidden').addEventListener('change', function() {
+  document.getElementById('date-display').textContent = formatDateDisplay(this.value);
+  update();
+});
+
+map.on('movestart zoomstart', () => { canvas.style.opacity='0'; });
+map.on('moveend zoomend', () => { canvas.style.opacity='1'; scheduleRender(); });
+window.addEventListener('resize', () => { resizeCanvas(); positionLayerBtns(); scheduleRender(); });
+
+// Live clock
+setInterval(() => {
+  const n = new Date();
+  const t = fmtTime(n);
+  const el = document.getElementById('clock');
+  if (el) el.textContent = t;
+}, 1000);
+
+// Load and go
+loadBuildings().then(() => {
+  document.getElementById('loading').classList.add('gone');
+  positionLayerBtns();
+  update();
+}).catch(() => {
+  document.getElementById('load-sub').textContent = '⚠ Offline – vereinfachter Modus';
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('gone');
+    positionLayerBtns();
+    update();
+  }, 2000);
+});
+
+// ── SEARCH ────────────────────────────────────────────
+let searchTimer = null;
+let searchMarker = null;
+
+const searchInput   = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+const searchClear   = document.getElementById('search-clear');
+
+function placeTypeIcon(type, cls) {
+  const t = ((type||'') + (cls||'')).toLowerCase();
+  if (t.includes('park') || t.includes('garden') || t.includes('grass')) return '🌳';
+  if (t.includes('cafe') || t.includes('restaurant') || t.includes('bar')) return '☕';
+  if (t.includes('hotel') || t.includes('hostel')) return '🏨';
+  if (t.includes('school') || t.includes('university')) return '🏫';
+  if (t.includes('hospital') || t.includes('pharmacy')) return '🏥';
+  if (t.includes('church') || t.includes('worship')) return '⛪';
+  if (t.includes('station') || t.includes('tram') || t.includes('bus')) return '🚉';
+  if (t.includes('shop') || t.includes('mall')) return '🛍️';
+  if (t.includes('museum') || t.includes('theatre') || t.includes('cinema')) return '🏛️';
+  if (t.includes('road') || t.includes('street') || t.includes('strasse') || t.includes('gasse') || t.includes('weg')) return '🛣️';
+  return '📍';
+}
+
+function shortAddress(item) {
+  const a = item.address || {};
+  return [a.road || a.pedestrian, a.suburb || a.city_district, a.city || a.town || 'Winterthur']
+    .filter(Boolean).join(', ');
+}
+
+async function doSearch(q) {
+  if (q.length < 2) { hideResults(); return; }
+  showLoading();
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Winterthur')}&addressdetails=1&limit=6&bounded=1&viewbox=8.68,47.52,8.78,47.47&accept-language=de`;
+    let data = await (await fetch(url)).json();
+    if (!data.length) {
+      const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ' Winterthur')}&addressdetails=1&limit=5&accept-language=de`;
+      data = await (await fetch(url2)).json();
+    }
+    renderResults(data);
+  } catch(e) {
+    searchResults.innerHTML = '<div class="result-msg">⚠ Suche nicht verfügbar</div>';
+    searchResults.classList.add('visible');
+  }
+}
+
+function renderResults(data) {
+  if (!data.length) {
+    searchResults.innerHTML = '<div class="result-msg">Keine Resultate gefunden</div>';
+    searchResults.classList.add('visible');
+    return;
+  }
+  searchResults.innerHTML = data.map(item => {
+    const icon = placeTypeIcon(item.type, item.class);
+    const name = item.display_name.split(',')[0];
+    const sub  = shortAddress(item);
+    const lat = parseFloat(item.lat).toFixed(6);
+    const lon = parseFloat(item.lon).toFixed(6);
+    return `<div class="result-item" onclick="selectResult(${lat},${lon},'${name.replace(/'/g,"\\'")}')">
+      <span class="result-icon">${icon}</span>
+      <div class="result-text">
+        <div class="result-name">${name}</div>
+        <div class="result-sub">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+  searchResults.classList.add('visible');
+}
+
+function showLoading() {
+  searchResults.innerHTML = '<div class="result-msg">Suche läuft…</div>';
+  searchResults.classList.add('visible');
+}
+function hideResults() { searchResults.classList.remove('visible'); }
+
+function selectResult(lat, lon, name) {
+  map.flyTo([lat, lon], 17, { duration: 1.2 });
+  if (searchMarker) map.removeLayer(searchMarker);
+  searchMarker = L.circleMarker([lat, lon], {
+    radius: 10, color: '#F59E0B', fillColor: '#FDE68A',
+    fillOpacity: 0.9, weight: 2.5
+  }).addTo(map).bindTooltip(name, { permanent: true, direction: 'top', offset:[0,-8] }).openTooltip();
+  searchInput.value = name;
+  searchClear.classList.add('visible');
+  hideResults();
+  searchInput.blur();
+}
+
+function clearSearch() {
+  searchInput.value = '';
+  searchClear.classList.remove('visible');
+  hideResults();
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+  searchInput.focus();
+}
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  searchClear.classList.toggle('visible', q.length > 0);
+  clearTimeout(searchTimer);
+  if (!q) { hideResults(); return; }
+  searchTimer = setTimeout(() => doSearch(q), 350);
+});
+
+searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
+map.on('click', hideResults);
+</script>
+</body>
+</html>
