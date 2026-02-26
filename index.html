@@ -668,9 +668,22 @@ let sunHighlightOn = true;
 
 async function loadBuildings() {
   const q = `[out:json][timeout:30];(way["building"](${BBOX}););out body;>;out skel qt;`;
-  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`;
-  const resp = await fetch(url);
-  const data = await resp.json();
+  const mirrors = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  ];
+  let data = null;
+  for (const base of mirrors) {
+    try {
+      document.getElementById('load-sub').textContent = 'Verbinde mit ' + new URL(base).hostname + '...';
+      const resp = await fetch(base + '?data=' + encodeURIComponent(q), { mode: 'cors' });
+      if (!resp.ok) continue;
+      data = await resp.json();
+      if (data && data.elements && data.elements.length) break;
+    } catch(e) { console.warn('Mirror failed:', base, e.message); }
+  }
+  if (!data || !data.elements) throw new Error('Alle Server nicht erreichbar');
 
   const nodes = {};
   for (const el of data.elements)
@@ -893,7 +906,7 @@ loadBuildings().then(() => {
   positionLayerBtns();
   update();
 }).catch(() => {
-  document.getElementById('load-sub').textContent = '⚠ Offline – vereinfachter Modus';
+  document.getElementById('load-sub').textContent = '⚠ Gebäudedaten nicht verfügbar – Sonnenposition wird trotzdem angezeigt';
   setTimeout(() => {
     document.getElementById('loading').classList.add('gone');
     positionLayerBtns();
