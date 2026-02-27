@@ -107,68 +107,65 @@ html, body {
 #layer-btns {
   position: fixed;
   left: 12px;
-  bottom: 200px; /* will be overridden by JS based on panel height */
+  bottom: 200px;
   z-index: 100;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
 }
 
 .layer-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(12, 14, 24, 0.92);
+  gap: 10px;
+  background: rgba(12,14,24,0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.15);
   border-radius: 12px;
-  padding: 10px 13px;
+  padding: 10px 14px;
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--muted);
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 500;
   white-space: nowrap;
   -webkit-appearance: none;
   appearance: none;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.55);
+  min-width: 130px;
 }
 
-.layer-btn .btn-icon { font-size: 1.1rem; line-height: 1; }
-.layer-btn .btn-label { line-height: 1.1; }
-.layer-btn .btn-state {
-  font-size: 0.58rem;
-  color: var(--muted);
-  display: block;
-  margin-top: 1px;
-}
+.layer-btn .btn-icon { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+.layer-btn .btn-text { display: flex; flex-direction: column; gap: 1px; }
+.layer-btn .btn-name { font-size: 0.78rem; font-weight: 600; line-height: 1.1; }
+.layer-btn .btn-state { font-size: 0.6rem; line-height: 1.1; font-weight: 400; }
 
-/* Active shadow button */
-.layer-btn.active {
-  border-color: rgba(245,158,11,0.5);
-  color: var(--amber);
-  background: rgba(12, 14, 24, 0.95);
-}
-
-/* Active sun button — stays dark bg so it's always readable */
-.layer-btn.active.sun-active {
-  background: rgba(12, 14, 24, 0.95);
-  border-color: var(--amber);
-  border-width: 1.5px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.3);
-  color: var(--amber-light);
-}
-.layer-btn.active.sun-active .btn-state { color: rgba(253,230,138,0.7); }
-
-/* Inactive = clearly off */
+/* INACTIVE — text always readable, just dimmed */
 .layer-btn:not(.active) {
-  color: #3a4060;
-  border-color: rgba(255,255,255,0.06);
-  background: rgba(12,14,24,0.75);
+  color: rgba(180,190,220,0.6);
+  border-color: rgba(255,255,255,0.08);
 }
-.layer-btn:not(.active) .btn-state { color: #3a4060; }
+.layer-btn:not(.active) .btn-name { color: rgba(200,210,235,0.75); }
+.layer-btn:not(.active) .btn-state { color: rgba(150,160,190,0.55); }
+.layer-btn:not(.active) .btn-icon { opacity: 0.45; }
+
+/* ACTIVE SHADOW — amber */
+.layer-btn.active {
+  border-color: rgba(245,158,11,0.7);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,158,11,0.2);
+}
+.layer-btn.active .btn-name { color: var(--amber); }
+.layer-btn.active .btn-state { color: rgba(253,200,80,0.7); }
+
+/* ACTIVE SUN — brighter amber glow */
+.layer-btn.active.sun-active {
+  border-color: var(--amber);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,158,11,0.35);
+}
+.layer-btn.active.sun-active .btn-name { color: var(--amber-light); }
+.layer-btn.active.sun-active .btn-state { color: rgba(253,230,138,0.65); }
 
 /* ── BOTTOM SHEET ────────────────────────────────────── */
 #sheet {
@@ -182,6 +179,24 @@ html, body {
   padding-bottom: max(16px, var(--safe-bottom));
   backdrop-filter: blur(20px);
   box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Collapsed: only handle + mini bar visible (~44px) */
+#sheet.collapsed {
+  transform: translateY(calc(100% - 44px));
+}
+
+/* Sheet header = always visible, contains handle + toggle */
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 10px 0 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Drag handle */
@@ -189,7 +204,45 @@ html, body {
   width: 36px; height: 4px;
   background: rgba(255,255,255,0.15);
   border-radius: 2px;
-  margin: 10px auto 14px;
+}
+
+/* Collapse toggle arrow */
+#sheet-toggle-btn {
+  position: absolute;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  transition: color 0.2s;
+}
+#sheet-toggle-btn:active { color: var(--text); }
+#sheet-toggle-btn .arrow {
+  display: inline-block;
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  font-size: 0.9rem;
+}
+#sheet.collapsed #sheet-toggle-btn .arrow {
+  transform: rotate(180deg);
+}
+
+/* Sheet body — the collapsible content */
+#sheet-body {
+  overflow: hidden;
+}
+
+/* Only show collapse button on mobile */
+@media (min-width: 640px) {
+  #sheet-toggle-btn { display: none; }
+  #sheet.collapsed { transform: none; }
 }
 
 /* Sun status row */
@@ -536,22 +589,22 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 <div id="layer-btns">
   <button class="layer-btn" id="shadow-toggle" onclick="toggleShadows()">
     <span class="btn-icon">🏢</span>
-    <div class="btn-label">
-      Schatten
+    <div class="btn-text">
+      <span class="btn-name">Schatten</span>
       <span class="btn-state" id="shadow-state">Aus</span>
     </div>
   </button>
   <button class="layer-btn active sun-active" id="sun-toggle" onclick="toggleSunHighlight()">
     <span class="btn-icon">☀️</span>
-    <div class="btn-label">
-      Sonne
+    <div class="btn-text">
+      <span class="btn-name">Sonne</span>
       <span class="btn-state" id="sun-state">Ein</span>
     </div>
   </button>
   <button class="layer-btn" id="gps-btn" onclick="toggleGPS()">
     <span class="btn-icon">📍</span>
-    <div class="btn-label">
-      Mein Standort
+    <div class="btn-text">
+      <span class="btn-name">Standort</span>
       <span class="btn-state" id="gps-state">Aus</span>
     </div>
   </button>
@@ -589,7 +642,14 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 
 <!-- BOTTOM SHEET -->
 <div id="sheet">
-  <div class="sheet-handle"></div>
+  <div class="sheet-header" onclick="toggleSheet()">
+    <div class="sheet-handle"></div>
+    <button id="sheet-toggle-btn" onclick="event.stopPropagation(); toggleSheet()">
+      <span class="arrow">▼</span>
+      <span id="sheet-toggle-label">Einklappen</span>
+    </button>
+  </div>
+  <div id="sheet-body">
 
   <!-- Sun status -->
   <div id="sun-status-row">
@@ -622,6 +682,8 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
   <div class="time-marks">
     <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
   </div>
+
+  </div><!-- /sheet-body -->
 </div>
 
 <script>
@@ -672,10 +734,36 @@ function movePoint(lat, lng, bearingDeg, meters) {
 
 // ── LAYER BUTTON POSITIONING ──────────────────────────
 function positionLayerBtns() {
+  const sheet   = document.getElementById('sheet');
+  const btns    = document.getElementById('layer-btns');
+  const isMobile = window.innerWidth < 640;
+  const collapsed = sheet.classList.contains('collapsed');
+
+  let offset;
+  if (isMobile && collapsed) {
+    offset = 44 + 12; // only handle bar visible
+  } else {
+    offset = sheet.offsetHeight + 12;
+  }
+  btns.style.bottom = offset + 'px';
+}
+
+// ── SHEET COLLAPSE ─────────────────────────────────────
+let sheetCollapsed = false;
+
+function toggleSheet() {
+  const isMobile = window.innerWidth < 640;
+  if (!isMobile) return;
+
+  sheetCollapsed = !sheetCollapsed;
   const sheet = document.getElementById('sheet');
-  const btns  = document.getElementById('layer-btns');
-  const sheetH = sheet.offsetHeight;
-  btns.style.bottom = (sheetH + 12) + 'px';
+  const label = document.getElementById('sheet-toggle-label');
+
+  sheet.classList.toggle('collapsed', sheetCollapsed);
+  label.textContent = sheetCollapsed ? 'Ausklappen' : 'Einklappen';
+
+  // Wait for transition then reposition buttons
+  setTimeout(positionLayerBtns, 360);
 }
 
 // ── BUILDINGS ─────────────────────────────────────────
