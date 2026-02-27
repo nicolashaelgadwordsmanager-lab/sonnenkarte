@@ -852,6 +852,75 @@ function toggleSheet() {
   setTimeout(positionLayerBtns, 360);
 }
 
+// ── WEATHER ───────────────────────────────────────────
+let weather = {
+  temp: null,
+  desc: null,
+  emoji: '☀️',
+  cloudCover: 0,      // 0-100%
+  isRaining: false,
+  sunIntensity: 1.0   // 0.0-1.0 multiplier for sun highlight
+};
+
+async function loadWeather() {
+  try {
+    // Open-Meteo: free, no API key, very reliable
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=47.4988&longitude=8.7269' +
+      '&current=temperature_2m,cloud_cover,precipitation,weathercode,is_day' +
+      '&timezone=Europe/Zurich';
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const c = data.current;
+
+    weather.temp      = Math.round(c.temperature_2m);
+    weather.cloudCover = c.cloud_cover;       // 0-100
+    weather.isRaining  = c.precipitation > 0;
+
+    // WMO weather code → emoji + description
+    const wc = c.weathercode;
+    let emoji, desc;
+    if      (wc === 0)              { emoji='☀️';  desc='Klar'; }
+    else if (wc <= 2)               { emoji='🌤️';  desc='Leicht bewölkt'; }
+    else if (wc === 3)              { emoji='☁️';  desc='Bewölkt'; }
+    else if (wc <= 49)              { emoji='🌫️';  desc='Neblig'; }
+    else if (wc <= 55)              { emoji='🌦️';  desc='Nieselregen'; }
+    else if (wc <= 65)              { emoji='🌧️';  desc='Regen'; }
+    else if (wc <= 77)              { emoji='🌨️';  desc='Schnee'; }
+    else if (wc <= 82)              { emoji='🌧️';  desc='Regenschauer'; }
+    else if (wc <= 86)              { emoji='🌨️';  desc='Schneeschauer'; }
+    else                            { emoji='⛈️';  desc='Gewitter'; }
+
+    weather.emoji = emoji;
+    weather.desc  = desc;
+
+    // Sun intensity based on cloud cover + rain
+    // Clear (0-20%) → 1.0, Partly cloudy (20-60%) → 0.6, Overcast (60-90%) → 0.25, Rain → 0.05
+    if (weather.isRaining) {
+      weather.sunIntensity = 0.05;
+    } else if (weather.cloudCover >= 90) {
+      weather.sunIntensity = 0.15;
+    } else if (weather.cloudCover >= 60) {
+      weather.sunIntensity = 0.35;
+    } else if (weather.cloudCover >= 20) {
+      weather.sunIntensity = 0.65;
+    } else {
+      weather.sunIntensity = 1.0;
+    }
+
+    // Update badge
+    const badge = document.querySelector('.wx-badge span:last-child');
+    if (badge) badge.textContent = `${weather.temp}°C · ${emoji} ${desc}`;
+
+    // Re-render with new weather
+    scheduleRender();
+
+    console.log('Weather loaded:', weather);
+  } catch(e) {
+    console.warn('Weather failed:', e.message);
+    // Keep defaults — sunny
+  }
+}
+
 // ── BUILDINGS ─────────────────────────────────────────
 let buildings = [];
 let shadowsOn = false;
@@ -1199,10 +1268,12 @@ function render() {
 
   // ── STEP 1: Sun highlight (yellow, outside building shadows) ──────────
   if (sunHighlightOn) {
-    const a = altDeg > 35 ? 0.50 : altDeg > 20 ? 0.40 : altDeg > 8 ? 0.30 : 0.18;
+    // Apply weather cloud cover to sun intensity
+    const baseA = altDeg > 35 ? 0.50 : altDeg > 20 ? 0.40 : altDeg > 8 ? 0.30 : 0.18;
+    const a = baseA * weather.sunIntensity;
     const s = new OffscreenCanvas(W,H);
     const sc = s.getContext('2d');
-    sc.fillStyle = `rgba(255,222,20,${a})`;
+    sc.fillStyle = `rgba(255,222,20,${a.toFixed(3)})`;
     sc.fillRect(0,0,W,H);
     // Remove building shadows from yellow
     sc.globalCompositeOperation = 'destination-out';
@@ -1215,8 +1286,10 @@ function render() {
   }
 
   // ── STEP 2: Building shadow overlay (blue-navy) ───────────────────────
+  // Overcast/rain = shadows much softer (diffuse light)
   if (shadowsOn) {
-    const a = altDeg > 35 ? 0.72 : altDeg > 20 ? 0.62 : altDeg > 10 ? 0.52 : 0.40;
+    const baseA = altDeg > 35 ? 0.72 : altDeg > 20 ? 0.62 : altDeg > 10 ? 0.52 : 0.40;
+    const a = baseA * Math.max(0.15, weather.sunIntensity);
     const t = new OffscreenCanvas(W,H);
     const tc = t.getContext('2d');
     tc.fillStyle = `rgba(12,20,75,${a})`;
@@ -1224,6 +1297,17 @@ function render() {
     tc.globalCompositeOperation = 'destination-in';
     tc.drawImage(off,0,0);
     ctx.drawImage(t,0,0);
+  }
+
+  // ── STEP 3: Weather overlay ───────────────────────────────────────────
+  // Overcast → grey tint, Rain → blue-grey tint
+  if (weather.isRaining && altDeg > -8) {
+    ctx.fillStyle = 'rgba(80,100,130,0.18)';
+    ctx.fillRect(0,0,W,H);
+  } else if (weather.cloudCover >= 80 && altDeg > -8) {
+    const cloudA = ((weather.cloudCover - 80) / 20) * 0.12;
+    ctx.fillStyle = `rgba(100,110,130,${cloudA.toFixed(3)})`;
+    ctx.fillRect(0,0,W,H);
   }
 }
 
@@ -1327,12 +1411,16 @@ setInterval(() => {
 // Load and go
 Promise.allSettled([
   loadBuildings(),
-  loadTrees()
+  loadTrees(),
+  loadWeather()
 ]).then(() => {
   document.getElementById('loading').classList.add('gone');
   positionLayerBtns();
   update();
 });
+
+// Refresh weather every 15 minutes
+setInterval(loadWeather, 15 * 60 * 1000);
 
 // ── GPS / STANDORT ───────────────────────────────────
 let gpsActive = false;
