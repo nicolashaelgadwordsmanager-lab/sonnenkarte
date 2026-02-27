@@ -664,18 +664,18 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span class="btn-state" id="sun-state">Ein</span>
     </div>
   </button>
-  <button class="layer-btn" id="gps-btn" onclick="toggleGPS()">
-    <span class="btn-icon">📍</span>
-    <div class="btn-text">
-      <span class="btn-name">Standort</span>
-      <span class="btn-state" id="gps-state">Aus</span>
-    </div>
-  </button>
   <button class="layer-btn" id="tree-btn" onclick="toggleTrees()">
     <span class="btn-icon">🌳</span>
     <div class="btn-text">
       <span class="btn-name">Bäume & Wald</span>
       <span class="btn-state" id="tree-state">Aus</span>
+    </div>
+  </button>
+  <button class="layer-btn" id="gps-btn" onclick="toggleGPS()">
+    <span class="btn-icon">📍</span>
+    <div class="btn-text">
+      <span class="btn-name">Standort</span>
+      <span class="btn-state" id="gps-state">Aus</span>
     </div>
   </button>
 </div>
@@ -819,14 +819,15 @@ function movePoint(lat, lng, bearingDeg, meters) {
 
 // ── LAYER BUTTON POSITIONING ──────────────────────────
 function positionLayerBtns() {
-  const sheet   = document.getElementById('sheet');
-  const btns    = document.getElementById('layer-btns');
+  const sheet    = document.getElementById('sheet');
+  const btns     = document.getElementById('layer-btns');
   const isMobile = window.innerWidth < 640;
   const collapsed = sheet.classList.contains('collapsed');
 
   let offset;
   if (isMobile && collapsed) {
-    offset = 44 + 12; // only handle bar visible
+    // mini slider strip height (108px) + safe margin
+    offset = 108 + 16;
   } else {
     offset = sheet.offsetHeight + 12;
   }
