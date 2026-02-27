@@ -897,9 +897,36 @@ async function loadBuildings() {
       const ring = (el.nodes||[]).map(id=>nodes[id]).filter(Boolean);
       if (ring.length < 3) continue;
       const t = el.tags;
-      const h = t['building:levels'] ? parseFloat(t['building:levels'])*3.2
-              : t['height']          ? parseFloat(t['height'])
-              : 8;
+      let h;
+      if (t['height']) {
+        h = parseFloat(t['height']);
+      } else if (t['building:levels']) {
+        h = parseFloat(t['building:levels']) * 3.2;
+      } else {
+        // Smart height estimate based on building type
+        const type = (t['building'] || '').toLowerCase();
+        if      (['church','chapel','place_of_worship'].includes(type))  h = 15;
+        else if (['cathedral','basilica'].includes(type))                h = 25;
+        else if (['house','detached','terrace','bungalow'].includes(type)) h = 6;
+        else if (['apartments','residential','block'].includes(type))    h = 12;
+        else if (['office','commercial','bank'].includes(type))          h = 14;
+        else if (['retail','shop','supermarket','kiosk'].includes(type)) h = 5;
+        else if (['industrial','warehouse','factory'].includes(type))    h = 10;
+        else if (['garage','garages','carport'].includes(type))          h = 3;
+        else if (['shed','hut','container','cabin'].includes(type))      h = 3;
+        else if (['school','kindergarten'].includes(type))               h = 9;
+        else if (['university','college'].includes(type))                h = 11;
+        else if (['hospital','clinic'].includes(type))                   h = 16;
+        else if (['hotel'].includes(type))                               h = 18;
+        else if (['stadium','sports_hall','sports_centre'].includes(type)) h = 12;
+        else if (['train_station','transportation'].includes(type))      h = 10;
+        else if (['parking','parking_garage'].includes(type))            h = 9;
+        else if (['farm','barn','stable'].includes(type))                h = 6;
+        else if (['greenhouse'].includes(type))                          h = 4;
+        else                                                             h = 8; // generic fallback
+      }
+      // Sanity clamp: nothing under 2.5m or over 120m
+      h = Math.max(2.5, Math.min(120, h));
       buildings.push({ ring, h });
     }
   }
