@@ -1039,24 +1039,75 @@ function render() {
   octx.fillStyle = '#000';
 
   if (shadowsOn || sunHighlightOn) {
+    // Sun direction vector in canvas space (unit vector pointing FROM sun)
+    const sunDirRad = D2R(shadowDir);
+    const sdx = Math.sin(sunDirRad);
+    const sdy = -Math.cos(sunDirRad); // canvas Y is flipped
+
     for (const bld of buildings) {
       const shadowLen = bld.h * mult;
-      if (shadowLen < 0.3) continue;
-      const basePx = bld.ring.map(([la,ln]) => geoToCanvas(la,ln));
-      const extPx  = bld.ring.map(([la,ln]) => {
-        const [el,elng] = movePoint(la,ln,shadowDir,shadowLen);
-        return geoToCanvas(el,elng);
-      });
-      if (!basePx.length) continue;
+      if (shadowLen < 0.5) continue;
+
+      // Project all base vertices to canvas pixels
+      const ring = bld.ring;
+      const n = ring.length;
+      const basePx = ring.map(([la,ln]) => geoToCanvas(la,ln));
+
+      // For each edge, determine if it's a silhouette edge
+      // (faces away from sun = shadow edge)
+      // Edge normal points outward; if dot(normal, sunDir) < 0 → backface → shadow edge
+      const shadowEdges = []; // pairs of [i, j] indices
+
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const [x1, y1] = basePx[i];
+        const [x2, y2] = basePx[j];
+        // Edge vector
+        const ex = x2 - x1, ey = y2 - y1;
+        // Outward normal (perpendicular, pointing right of edge direction)
+        const nx = ey, ny = -ex;
+        // Dot with sun direction
+        const dot = nx * sdx + ny * sdy;
+        if (dot < 0) shadowEdges.push([i, j]);
+      }
+
+      if (shadowEdges.length === 0) continue;
+
+      // Convert shadow length from meters to pixels
+      // Use a reference pixel size at this location
+      const [refLat, refLng] = ring[0];
+      const [rx1, ry1] = geoToCanvas(refLat, refLng);
+      const [refLat2, refLng2] = movePoint(refLat, refLng, shadowDir, shadowLen);
+      const [rx2, ry2] = geoToCanvas(refLat2, refLng2);
+      const pixelOffsetX = rx2 - rx1;
+      const pixelOffsetY = ry2 - ry1;
+
+      // Draw shadow volume: for each shadow edge, create a quad
+      // from the edge extruded in shadow direction
       octx.beginPath();
-      octx.moveTo(basePx[0][0],basePx[0][1]);
-      for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
-      for (let i=extPx.length-1;i>=0;i--) octx.lineTo(extPx[i][0],extPx[i][1]);
-      octx.closePath(); octx.fill();
-      octx.beginPath();
-      octx.moveTo(basePx[0][0],basePx[0][1]);
-      for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
-      octx.closePath(); octx.fill();
+
+      // First draw the building footprint
+      octx.moveTo(basePx[0][0], basePx[0][1]);
+      for (let i = 1; i < n; i++) octx.lineTo(basePx[i][0], basePx[i][1]);
+      octx.closePath();
+      octx.fill();
+
+      // Then draw extruded quads for each shadow edge
+      for (const [i, j] of shadowEdges) {
+        const [x1, y1] = basePx[i];
+        const [x2, y2] = basePx[j];
+        // Extruded points
+        const x3 = x2 + pixelOffsetX, y3 = y2 + pixelOffsetY;
+        const x4 = x1 + pixelOffsetX, y4 = y1 + pixelOffsetY;
+
+        octx.beginPath();
+        octx.moveTo(x1, y1);
+        octx.lineTo(x2, y2);
+        octx.lineTo(x3, y3);
+        octx.lineTo(x4, y4);
+        octx.closePath();
+        octx.fill();
+      }
     }
   }
 
