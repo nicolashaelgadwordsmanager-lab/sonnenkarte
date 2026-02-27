@@ -365,6 +365,16 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 .load-sub { font-size: .72rem; color: var(--muted); }
 .load-hint { font-size: .65rem; color: var(--muted); opacity:.6; margin-top:4px; }
 
+/* GPS button active state */
+#gps-btn.active {
+  border-color: rgba(74,222,128,0.6);
+  color: #4ade80;
+  background: rgba(12,14,24,0.95);
+}
+#gps-btn.active .btn-state { color: rgba(74,222,128,0.7); }
+#gps-btn.locating .btn-icon { animation: pulse-gps 1s infinite; }
+@keyframes pulse-gps { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
 /* ── SEARCH BOX ──────────────────────────────────────── */
 #search-wrap {
   position: fixed;
@@ -538,6 +548,13 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span class="btn-state" id="sun-state">Ein</span>
     </div>
   </button>
+  <button class="layer-btn" id="gps-btn" onclick="toggleGPS()">
+    <span class="btn-icon">📍</span>
+    <div class="btn-label">
+      Mein Standort
+      <span class="btn-state" id="gps-state">Aus</span>
+    </div>
+  </button>
 </div>
 
 <!-- INFO PILL (desktop) -->
@@ -667,23 +684,30 @@ let shadowsOn = false;
 let sunHighlightOn = true;
 
 async function loadBuildings() {
-  const q = `[out:json][timeout:30];(way["building"](${BBOX}););out body;>;out skel qt;`;
-  const mirrors = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  // Try local static file first (fast, no API limits)
+  // Falls back to Overpass API mirrors if not found
+  const sources = [
+    'buildings.json',
+    'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:60];(way["building"](47.485,8.705,47.515,8.750););out body;>;out skel qt;'),
+    'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:60];(way["building"](47.485,8.705,47.515,8.750););out body;>;out skel qt;'),
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=' + encodeURIComponent('[out:json][timeout:60];(way["building"](47.485,8.705,47.515,8.750););out body;>;out skel qt;'),
   ];
+
   let data = null;
-  for (const base of mirrors) {
+  for (const src of sources) {
     try {
-      document.getElementById('load-sub').textContent = 'Verbinde mit ' + new URL(base).hostname + '...';
-      const resp = await fetch(base + '?data=' + encodeURIComponent(q), { mode: 'cors' });
+      const label = src.startsWith('buildings') ? 'lokale Datei' : new URL(src).hostname;
+      document.getElementById('load-sub').textContent = 'Lade von ' + label + '...';
+      const resp = await fetch(src);
       if (!resp.ok) continue;
       data = await resp.json();
-      if (data && data.elements && data.elements.length) break;
-    } catch(e) { console.warn('Mirror failed:', base, e.message); }
+      if (data && data.elements && data.elements.length) {
+        console.log('Loaded from:', label, data.elements.length, 'elements');
+        break;
+      }
+    } catch(e) { console.warn('Source failed:', src.substring(0,50), e.message); }
   }
-  if (!data || !data.elements) throw new Error('Alle Server nicht erreichbar');
+  if (!data || !data.elements) throw new Error('Keine Gebäudedaten verfügbar');
 
   const nodes = {};
   for (const el of data.elements)
@@ -913,6 +937,112 @@ loadBuildings().then(() => {
     update();
   }, 2000);
 });
+
+// ── GPS / STANDORT ───────────────────────────────────
+let gpsActive = false;
+let gpsWatchId = null;
+let gpsMarker = null;
+let gpsAccuracyCircle = null;
+
+function toggleGPS() {
+  if (!gpsActive) {
+    startGPS();
+  } else {
+    stopGPS();
+  }
+}
+
+function startGPS() {
+  if (!navigator.geolocation) {
+    alert('GPS wird von diesem Browser nicht unterstützt.');
+    return;
+  }
+
+  const btn = document.getElementById('gps-btn');
+  const state = document.getElementById('gps-state');
+  btn.classList.add('active', 'locating');
+  state.textContent = 'Suche...';
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+      btn.classList.remove('locating');
+      btn.classList.add('active');
+      state.textContent = 'Aktiv';
+      gpsActive = true;
+
+      // Remove old markers
+      if (gpsMarker) map.removeLayer(gpsMarker);
+      if (gpsAccuracyCircle) map.removeLayer(gpsAccuracyCircle);
+
+      // Accuracy circle (light blue)
+      gpsAccuracyCircle = L.circle([lat, lng], {
+        radius: accuracy,
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+        weight: 1,
+        opacity: 0.4,
+        interactive: false
+      }).addTo(map);
+
+      // Position dot
+      gpsMarker = L.circleMarker([lat, lng], {
+        radius: 9,
+        color: '#fff',
+        fillColor: '#3b82f6',
+        fillOpacity: 1,
+        weight: 2.5,
+        interactive: false
+      }).addTo(map);
+
+      // Fly to location only on first fix
+      if (!gpsActive) {
+        map.flyTo([lat, lng], 17, { duration: 1.5 });
+      }
+      gpsActive = true;
+    },
+    (err) => {
+      console.warn('GPS error:', err.message);
+      const btn = document.getElementById('gps-btn');
+      const state = document.getElementById('gps-state');
+      btn.classList.remove('active', 'locating');
+      state.textContent = 'Fehler';
+      gpsActive = false;
+
+      if (err.code === 1) {
+        alert('GPS-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000
+    }
+  );
+
+  // Fly to current location immediately
+  navigator.geolocation.getCurrentPosition(
+    (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 1.5 }),
+    () => {}
+  );
+}
+
+function stopGPS() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+  if (gpsMarker) { map.removeLayer(gpsMarker); gpsMarker = null; }
+  if (gpsAccuracyCircle) { map.removeLayer(gpsAccuracyCircle); gpsAccuracyCircle = null; }
+
+  gpsActive = false;
+  const btn = document.getElementById('gps-btn');
+  const state = document.getElementById('gps-state');
+  btn.classList.remove('active', 'locating');
+  state.textContent = 'Aus';
+}
 
 // ── SEARCH ────────────────────────────────────────────
 let searchTimer = null;
