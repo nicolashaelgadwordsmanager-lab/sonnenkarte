@@ -182,9 +182,9 @@ html, body {
   transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* Collapsed: only handle + mini bar visible (~44px) */
+/* Collapsed: show handle + mini slider strip */
 #sheet.collapsed {
-  transform: translateY(calc(100% - 44px));
+  transform: translateY(calc(100% - 108px));
 }
 
 /* Sheet header = always visible, contains handle + toggle */
@@ -193,7 +193,7 @@ html, body {
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: 10px 0 8px;
+  padding: 10px 0 6px;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -234,15 +234,70 @@ html, body {
   transform: rotate(180deg);
 }
 
-/* Sheet body — the collapsible content */
+/* Mini slider — always visible even when collapsed */
+#mini-slider-row {
+  display: none; /* hidden when expanded */
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 8px;
+}
+#sheet.collapsed #mini-slider-row {
+  display: flex;
+}
 #sheet-body {
   overflow: hidden;
+}
+/* When collapsed, sheet-body slides away but mini-slider stays */
+#sheet.collapsed #sheet-body {
+  display: none;
+}
+
+.mini-time {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  color: var(--amber);
+  flex-shrink: 0;
+  min-width: 52px;
+  line-height: 1;
+}
+.mini-now-btn {
+  background: var(--amber-dim);
+  border: 1px solid var(--border-amber);
+  border-radius: 8px;
+  padding: 5px 9px;
+  color: var(--amber);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem;
+  cursor: pointer;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+}
+.mini-slider-wrap {
+  flex: 1;
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+.mini-track-bg {
+  position: absolute;
+  left: 0; top: 50%; transform: translateY(-50%);
+  width: 100%; height: 5px; border-radius: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    #07080f 0%,#07080f 20%,
+    #1b3660 27%,#89c4e1 36%,
+    #ffe88a 50%,#f59e0b 58%,
+    #e05a1a 68%,#1b2f60 77%,
+    #07080f 85%);
 }
 
 /* Only show collapse button on mobile */
 @media (min-width: 640px) {
   #sheet-toggle-btn { display: none; }
   #sheet.collapsed { transform: none; }
+  #mini-slider-row { display: none !important; }
+  #sheet.collapsed #sheet-body { display: block; }
 }
 
 /* Sun status row */
@@ -668,6 +723,17 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span id="sheet-toggle-label">Einklappen</span>
     </button>
   </div>
+
+  <!-- Mini slider row — visible only when collapsed -->
+  <div id="mini-slider-row">
+    <div class="mini-time" id="mini-time-val">12:00</div>
+    <div class="mini-slider-wrap">
+      <div class="mini-track-bg"></div>
+      <input type="range" id="mini-time-slider" min="0" max="1439" value="720" step="5"/>
+    </div>
+    <button class="mini-now-btn" onclick="event.stopPropagation(); goNow()">Jetzt</button>
+  </div>
+
   <div id="sheet-body">
 
   <!-- Sun status -->
@@ -868,7 +934,7 @@ async function loadTrees() {
           // height: use tag or estimate from circumference/species
           const h = t['height'] ? parseFloat(t['height'])
                   : t['est_height'] ? parseFloat(t['est_height'])
-                  : 10; // default 10m
+                  : 6; // default 6m (conservative — taller buildings already cast shadow)
           // crown radius: use tag or estimate
           const r = t['crown_diameter'] ? parseFloat(t['crown_diameter']) / 2
                   : h * 0.35; // estimate: crown ~35% of height as radius
@@ -1036,7 +1102,12 @@ function render() {
       toctx.restore();
     }
 
-    // Draw forest shadow overlay (dark green)
+    // Remove tree shadows where building shadows already cover (avoid double shadow)
+    toctx.globalCompositeOperation = 'destination-out';
+    toctx.drawImage(off, 0, 0);
+    toctx.globalCompositeOperation = 'source-over';
+
+    // Draw forest/tree shadow overlay (dark green)
     const forestAlpha = altDeg > 20 ? 0.78 : 0.65;
     const ft = new OffscreenCanvas(W,H);
     const ftc = ft.getContext('2d');
@@ -1098,6 +1169,9 @@ function formatDateDisplay(dateStr) {
 function update() {
   const mins = parseInt(document.getElementById('time-slider').value);
   document.getElementById('time-val').innerHTML = `${fmtMin(mins)}<small>Uhr</small>`;
+  // Sync mini slider
+  document.getElementById('mini-time-slider').value = mins;
+  document.getElementById('mini-time-val').textContent = fmtMin(mins);
 
   const dt = getDateTime();
   const pos = SunCalc.getPosition(dt, LAT, LNG);
@@ -1148,6 +1222,11 @@ document.getElementById('date-display').textContent = 'Heute';
 document.getElementById('time-slider').value = today.getHours()*60+today.getMinutes();
 
 document.getElementById('time-slider').addEventListener('input', update);
+document.getElementById('mini-time-slider').addEventListener('input', () => {
+  // Sync main slider from mini slider
+  document.getElementById('time-slider').value = document.getElementById('mini-time-slider').value;
+  update();
+});
 
 document.getElementById('date-input-hidden').addEventListener('change', function() {
   document.getElementById('date-display').textContent = formatDateDisplay(this.value);
