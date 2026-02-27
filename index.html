@@ -421,12 +421,20 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 /* GPS button active state */
 #gps-btn.active {
   border-color: rgba(74,222,128,0.6);
-  color: #4ade80;
   background: rgba(12,14,24,0.95);
 }
+#gps-btn.active .btn-name { color: #4ade80; }
 #gps-btn.active .btn-state { color: rgba(74,222,128,0.7); }
 #gps-btn.locating .btn-icon { animation: pulse-gps 1s infinite; }
 @keyframes pulse-gps { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Tree button active state */
+#tree-btn.active {
+  border-color: rgba(34,197,94,0.7);
+  background: rgba(12,14,24,0.95);
+}
+#tree-btn.active .btn-name { color: #22c55e; }
+#tree-btn.active .btn-state { color: rgba(34,197,94,0.7); }
 
 /* ── SEARCH BOX ──────────────────────────────────────── */
 #search-wrap {
@@ -608,6 +616,13 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span class="btn-state" id="gps-state">Aus</span>
     </div>
   </button>
+  <button class="layer-btn" id="tree-btn" onclick="toggleTrees()">
+    <span class="btn-icon">🌳</span>
+    <div class="btn-text">
+      <span class="btn-name">Bäume & Wald</span>
+      <span class="btn-state" id="tree-state">Aus</span>
+    </div>
+  </button>
 </div>
 
 <!-- INFO PILL (desktop) -->
@@ -629,6 +644,10 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
   <div class="leg-row">
     <div class="leg-sw" style="background:rgba(12,20,75,0.75)"></div>
     Gebäudeschatten
+  </div>
+  <div class="leg-row">
+    <div class="leg-sw" style="background:rgba(10,40,15,0.78)"></div>
+    Wald / Baumschatten
   </div>
 </div>
 
@@ -771,6 +790,11 @@ let buildings = [];
 let shadowsOn = false;
 let sunHighlightOn = true;
 
+// ── TREES & FORESTS ───────────────────────────────────
+let trees = [];       // {lat, lng, h, r} individual trees
+let forests = [];     // {ring} forest/wood polygons
+let treesOn = false;
+
 async function loadBuildings() {
   // Try local static file first (fast, no API limits)
   // Falls back to Overpass API mirrors if not found
@@ -815,6 +839,69 @@ async function loadBuildings() {
   document.getElementById('p-bldg').textContent = buildings.length.toLocaleString();
 }
 
+// ── LOAD TREES & FORESTS ─────────────────────────────
+async function loadTrees() {
+  const BBOX = '47.485,8.705,47.515,8.750';
+
+  const sources_trees = [
+    'trees.json',
+    'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(`[out:json][timeout:60];(node["natural"="tree"](${BBOX}););out body qt;`),
+    'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(`[out:json][timeout:60];(node["natural"="tree"](${BBOX}););out body qt;`),
+  ];
+
+  const sources_forests = [
+    'forests.json',
+    'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(`[out:json][timeout:60];(way["natural"="wood"](${BBOX});way["landuse"="forest"](${BBOX}););out body;>;out skel qt;`),
+    'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(`[out:json][timeout:60];(way["natural"="wood"](${BBOX});way["landuse"="forest"](${BBOX}););out body;>;out skel qt;`),
+  ];
+
+  // Load individual trees
+  for (const src of sources_trees) {
+    try {
+      const resp = await fetch(src);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (!data?.elements?.length) continue;
+      for (const el of data.elements) {
+        if (el.type === 'node' && el.lat && el.lon) {
+          const t = el.tags || {};
+          // height: use tag or estimate from circumference/species
+          const h = t['height'] ? parseFloat(t['height'])
+                  : t['est_height'] ? parseFloat(t['est_height'])
+                  : 10; // default 10m
+          // crown radius: use tag or estimate
+          const r = t['crown_diameter'] ? parseFloat(t['crown_diameter']) / 2
+                  : h * 0.35; // estimate: crown ~35% of height as radius
+          trees.push({ lat: el.lat, lng: el.lon, h, r });
+        }
+      }
+      console.log('Trees loaded:', trees.length, 'from', src.substring(0,40));
+      break;
+    } catch(e) { console.warn('Trees source failed:', e.message); }
+  }
+
+  // Load forests/woods
+  for (const src of sources_forests) {
+    try {
+      const resp = await fetch(src);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (!data?.elements?.length) continue;
+      const nodes = {};
+      for (const el of data.elements)
+        if (el.type === 'node') nodes[el.id] = [el.lat, el.lon];
+      for (const el of data.elements) {
+        if (el.type === 'way' && (el.tags?.natural === 'wood' || el.tags?.landuse === 'forest')) {
+          const ring = (el.nodes || []).map(id => nodes[id]).filter(Boolean);
+          if (ring.length >= 3) forests.push({ ring });
+        }
+      }
+      console.log('Forests loaded:', forests.length, 'from', src.substring(0,40));
+      break;
+    } catch(e) { console.warn('Forests source failed:', e.message); }
+  }
+}
+
 // ── TOGGLES ───────────────────────────────────────────
 function toggleShadows() {
   shadowsOn = !shadowsOn;
@@ -832,6 +919,15 @@ function toggleSunHighlight() {
   btn.classList.toggle('active', sunHighlightOn);
   btn.classList.toggle('sun-active', sunHighlightOn);
   state.textContent = sunHighlightOn ? 'Ein' : 'Aus';
+  scheduleRender();
+}
+
+function toggleTrees() {
+  treesOn = !treesOn;
+  const btn = document.getElementById('tree-btn');
+  const state = document.getElementById('tree-state');
+  btn.classList.toggle('active', treesOn);
+  state.textContent = treesOn ? 'Ein' : 'Aus';
   scheduleRender();
 }
 
@@ -865,52 +961,110 @@ function render() {
     ctx.fillRect(0,0,W,H);
   }
 
-  if ((!shadowsOn && !sunHighlightOn) || buildings.length===0 || altDeg < 1) return;
+  const anyActive = shadowsOn || sunHighlightOn || treesOn;
+  if (!anyActive || altDeg < 1) return;
 
   const mult = Math.min(1/Math.tan(Math.max(pos.altitude, D2R(1))), 20);
 
-  // Build binary shadow mask
+  // ── BUILDING SHADOW MASK ──────────────────────────────
   const off = new OffscreenCanvas(W, H);
   const octx = off.getContext('2d');
   octx.fillStyle = '#000';
 
-  for (const bld of buildings) {
-    const shadowLen = bld.h * mult;
-    if (shadowLen < 0.3) continue;
-    const basePx = bld.ring.map(([la,ln]) => geoToCanvas(la,ln));
-    const extPx  = bld.ring.map(([la,ln]) => {
-      const [el,elng] = movePoint(la,ln,shadowDir,shadowLen);
-      return geoToCanvas(el,elng);
-    });
-    if (!basePx.length) continue;
-
-    // Shadow volume
-    octx.beginPath();
-    octx.moveTo(basePx[0][0],basePx[0][1]);
-    for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
-    for (let i=extPx.length-1;i>=0;i--) octx.lineTo(extPx[i][0],extPx[i][1]);
-    octx.closePath(); octx.fill();
-
-    // Building footprint
-    octx.beginPath();
-    octx.moveTo(basePx[0][0],basePx[0][1]);
-    for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
-    octx.closePath(); octx.fill();
+  if (shadowsOn || sunHighlightOn) {
+    for (const bld of buildings) {
+      const shadowLen = bld.h * mult;
+      if (shadowLen < 0.3) continue;
+      const basePx = bld.ring.map(([la,ln]) => geoToCanvas(la,ln));
+      const extPx  = bld.ring.map(([la,ln]) => {
+        const [el,elng] = movePoint(la,ln,shadowDir,shadowLen);
+        return geoToCanvas(el,elng);
+      });
+      if (!basePx.length) continue;
+      octx.beginPath();
+      octx.moveTo(basePx[0][0],basePx[0][1]);
+      for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
+      for (let i=extPx.length-1;i>=0;i--) octx.lineTo(extPx[i][0],extPx[i][1]);
+      octx.closePath(); octx.fill();
+      octx.beginPath();
+      octx.moveTo(basePx[0][0],basePx[0][1]);
+      for (let i=1;i<basePx.length;i++) octx.lineTo(basePx[i][0],basePx[i][1]);
+      octx.closePath(); octx.fill();
+    }
   }
 
-  // Step 1: Sun highlight (bright yellow, excluding shadows)
+  // ── TREE & FOREST SHADOW MASK ─────────────────────────
+  const treeOff = new OffscreenCanvas(W, H);
+  const toctx = treeOff.getContext('2d');
+  toctx.fillStyle = '#000';
+
+  if (treesOn) {
+    // 1. Forests: full dark coverage (no sun penetrates dense forest)
+    for (const f of forests) {
+      const px = f.ring.map(([la,ln]) => geoToCanvas(la,ln));
+      if (px.length < 3) continue;
+      toctx.beginPath();
+      toctx.moveTo(px[0][0],px[0][1]);
+      for (let i=1;i<px.length;i++) toctx.lineTo(px[i][0],px[i][1]);
+      toctx.closePath(); toctx.fill();
+    }
+
+    // 2. Individual trees: elliptical shadow cast in shadow direction
+    for (const tree of trees) {
+      const shadowLen = tree.h * mult;
+      if (shadowLen < 0.5) continue;
+
+      // Shadow tip = center of shadow cast
+      const [sLat, sLng] = movePoint(tree.lat, tree.lng, shadowDir, shadowLen * 0.7);
+      const [cx, cy] = geoToCanvas(sLat, sLng);
+
+      // Crown radius in pixels
+      const [bx, by] = geoToCanvas(tree.lat, tree.lng);
+      const [rx2, ry2] = geoToCanvas(...movePoint(tree.lat, tree.lng, 90, tree.r));
+      const crownPx = Math.max(3, Math.sqrt((rx2-bx)**2 + (ry2-by)**2));
+
+      // Shadow ellipse: elongated in shadow direction
+      const elongation = Math.min(shadowLen / tree.h, 4);
+      const shadowDirRad = D2R(shadowDir - 90); // canvas rotation
+
+      toctx.save();
+      toctx.translate(cx, cy);
+      toctx.rotate(shadowDirRad);
+      toctx.beginPath();
+      toctx.ellipse(0, 0, crownPx * elongation * 0.6, crownPx, 0, 0, Math.PI * 2);
+      toctx.fill();
+      toctx.restore();
+    }
+
+    // Draw forest shadow overlay (dark green)
+    const forestAlpha = altDeg > 20 ? 0.78 : 0.65;
+    const ft = new OffscreenCanvas(W,H);
+    const ftc = ft.getContext('2d');
+    ftc.fillStyle = `rgba(10,40,15,${forestAlpha})`;
+    ftc.fillRect(0,0,W,H);
+    ftc.globalCompositeOperation = 'destination-in';
+    ftc.drawImage(treeOff,0,0);
+    ctx.drawImage(ft,0,0);
+  }
+
+  // ── STEP 1: Sun highlight (yellow, outside building shadows) ──────────
   if (sunHighlightOn) {
     const a = altDeg > 35 ? 0.50 : altDeg > 20 ? 0.40 : altDeg > 8 ? 0.30 : 0.18;
     const s = new OffscreenCanvas(W,H);
     const sc = s.getContext('2d');
     sc.fillStyle = `rgba(255,222,20,${a})`;
     sc.fillRect(0,0,W,H);
+    // Remove building shadows from yellow
     sc.globalCompositeOperation = 'destination-out';
     sc.drawImage(off,0,0);
+    // Also remove forest/tree areas from yellow (they're not sunny)
+    if (treesOn) {
+      sc.drawImage(treeOff,0,0);
+    }
     ctx.drawImage(s,0,0);
   }
 
-  // Step 2: Shadow overlay (blue-navy, only on shadow areas)
+  // ── STEP 2: Building shadow overlay (blue-navy) ───────────────────────
   if (shadowsOn) {
     const a = altDeg > 35 ? 0.72 : altDeg > 20 ? 0.62 : altDeg > 10 ? 0.52 : 0.40;
     const t = new OffscreenCanvas(W,H);
@@ -1013,17 +1167,13 @@ setInterval(() => {
 }, 1000);
 
 // Load and go
-loadBuildings().then(() => {
+Promise.allSettled([
+  loadBuildings(),
+  loadTrees()
+]).then(() => {
   document.getElementById('loading').classList.add('gone');
   positionLayerBtns();
   update();
-}).catch(() => {
-  document.getElementById('load-sub').textContent = '⚠ Gebäudedaten nicht verfügbar – Sonnenposition wird trotzdem angezeigt';
-  setTimeout(() => {
-    document.getElementById('loading').classList.add('gone');
-    positionLayerBtns();
-    update();
-  }, 2000);
 });
 
 // ── GPS / STANDORT ───────────────────────────────────
