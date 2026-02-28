@@ -490,6 +490,74 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 .load-sub { font-size: .72rem; color: var(--muted); }
 .load-hint { font-size: .65rem; color: var(--muted); opacity:.6; margin-top:4px; }
 
+/* ── SUN SPLIT BUTTON ────────────────────────────────── */
+.sun-btn {
+  padding: 0 !important;
+  overflow: hidden;
+  gap: 0 !important;
+  min-width: 130px;
+}
+
+.sun-half {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 10px 8px;
+  gap: 3px;
+  transition: background 0.2s, color 0.2s;
+  color: rgba(200,210,235,0.3);
+}
+
+.sun-half-icon { font-size: 1.0rem; line-height: 1; }
+.sun-half-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+/* Vertical divider */
+.sun-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+/* State: left half lit (aktuelles Wetter) */
+.sun-btn.state-actual .sun-half.left {
+  color: var(--amber);
+  background: rgba(245,158,11,0.12);
+}
+.sun-btn.state-actual .sun-divider {
+  background: rgba(245,158,11,0.25);
+}
+
+/* State: both halves lit (ideales Wetter) */
+.sun-btn.state-ideal .sun-half.left {
+  color: var(--amber-light);
+  background: rgba(245,158,11,0.15);
+}
+.sun-btn.state-ideal .sun-half.right {
+  color: var(--amber-light);
+  background: rgba(245,158,11,0.22);
+}
+.sun-btn.state-ideal .sun-divider {
+  background: rgba(245,158,11,0.4);
+}
+.sun-btn.state-ideal {
+  border-color: var(--amber);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,158,11,0.35);
+}
+.sun-btn.state-actual {
+  border-color: rgba(245,158,11,0.5);
+}
+
 /* GPS button active state */
 #gps-btn.active {
   border-color: rgba(74,222,128,0.6);
@@ -674,11 +742,15 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span class="btn-state" id="shadow-state">Aus</span>
     </div>
   </button>
-  <button class="layer-btn active sun-active" id="sun-toggle" onclick="toggleSunHighlight()">
-    <span class="btn-icon">☀️</span>
-    <div class="btn-text">
-      <span class="btn-name">Sonne</span>
-      <span class="btn-state" id="sun-state">Ein</span>
+  <button class="layer-btn sun-btn" id="sun-toggle" onclick="cycleSun()">
+    <div class="sun-half left" id="sun-left">
+      <span class="sun-half-icon">☀️</span>
+      <span class="sun-half-label">Aktuell</span>
+    </div>
+    <div class="sun-divider"></div>
+    <div class="sun-half right" id="sun-right">
+      <span class="sun-half-icon">✦</span>
+      <span class="sun-half-label">Ideal</span>
     </div>
   </button>
   <button class="layer-btn" id="tree-btn" onclick="toggleTrees()">
@@ -1122,13 +1194,38 @@ function toggleShadows() {
   scheduleRender();
 }
 
-function toggleSunHighlight() {
-  sunHighlightOn = !sunHighlightOn;
+// Sun button: 3 states — off → actual → ideal → off
+// 0=off, 1=actual weather, 2=ideal
+let sunState = 1; // start with actual weather on
+
+function cycleSun() {
+  sunState = (sunState + 1) % 3;
   const btn = document.getElementById('sun-toggle');
-  const state = document.getElementById('sun-state');
-  btn.classList.toggle('active', sunHighlightOn);
-  btn.classList.toggle('sun-active', sunHighlightOn);
-  state.textContent = sunHighlightOn ? 'Ein' : 'Aus';
+
+  btn.classList.remove('state-actual', 'state-ideal', 'active', 'sun-active');
+
+  if (sunState === 0) {
+    // Off — all grey
+    sunHighlightOn = false;
+    weatherIdealMode = false;
+  } else if (sunState === 1) {
+    // Actual weather — left half lit
+    sunHighlightOn = true;
+    weatherIdealMode = false;
+    btn.classList.add('state-actual', 'active');
+  } else {
+    // Ideal — both halves lit
+    sunHighlightOn = true;
+    weatherIdealMode = true;
+    btn.classList.add('state-ideal', 'active', 'sun-active');
+  }
+
+  // Sync weather badge dot
+  const badge = document.getElementById('wx-badge');
+  if (badge) badge.classList.toggle('ideal', weatherIdealMode);
+  if (!weatherIdealMode) updateWeatherBadge();
+  else document.getElementById('wx-text').textContent = '✦ Ideales Wetter';
+
   scheduleRender();
 }
 
@@ -1458,6 +1555,9 @@ setInterval(() => {
 // Load and go
 // Set initial badge text before weather loads
 document.getElementById('wx-text').textContent = '☀️ Winterthur';
+
+// Set initial sun button state (state-actual = on by default)
+document.getElementById('sun-toggle').classList.add('state-actual', 'active');
 
 Promise.allSettled([
   loadBuildings(),
