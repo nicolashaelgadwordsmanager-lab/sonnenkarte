@@ -953,17 +953,30 @@ let weather = {
 let weatherIdealMode = false;
 
 function toggleWeatherMode() {
-  weatherIdealMode = !weatherIdealMode;
-  const badge = document.getElementById('wx-badge');
-  const dot   = document.getElementById('wx-dot');
-  const text  = document.getElementById('wx-text');
-
-  if (weatherIdealMode) {
-    badge.classList.add('ideal');
-    text.textContent = '✦ Ideales Wetter';
+  // Badge click: if off → go to actual, if actual → go to ideal, if ideal → go to actual
+  if (sunState === 0) {
+    sunState = 1; // off → actual
+  } else if (sunState === 1) {
+    sunState = 2; // actual → ideal
   } else {
-    badge.classList.remove('ideal');
+    sunState = 1; // ideal → back to actual
+  }
+
+  const btn = document.getElementById('sun-toggle');
+  btn.classList.remove('state-actual', 'state-ideal', 'active', 'sun-active');
+
+  if (sunState === 1) {
+    sunHighlightOn = true;
+    weatherIdealMode = false;
+    btn.classList.add('state-actual', 'active');
+    document.getElementById('wx-badge').classList.remove('ideal');
     updateWeatherBadge();
+  } else {
+    sunHighlightOn = true;
+    weatherIdealMode = true;
+    btn.classList.add('state-ideal', 'active', 'sun-active');
+    document.getElementById('wx-badge').classList.add('ideal');
+    document.getElementById('wx-text').textContent = '✦ Ideales Wetter';
   }
   scheduleRender();
 }
