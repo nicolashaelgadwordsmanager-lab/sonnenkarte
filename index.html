@@ -93,13 +93,30 @@ html, body {
   color: var(--text);
   pointer-events: all;
   backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.wx-badge:active { opacity: 0.8; }
+
+/* Ideal weather mode — amber glow */
+.wx-badge.ideal {
+  border-color: rgba(245,158,11,0.5);
+  background: rgba(30,24,10,0.95);
+}
+.wx-badge.ideal #wx-dot {
+  background: var(--amber);
+  animation: none;
+}
+
 .live-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
   background: #4ade80;
   animation: blink 2s infinite;
   flex-shrink: 0;
+  transition: background 0.2s;
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
@@ -632,9 +649,9 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
     Sonnenkarte
     <span>8400 Winterthur</span>
   </div>
-  <div class="wx-badge">
-    <span class="live-dot"></span>
-    <span>8.7°C · ☀️ Mostly Sunny</span>
+  <div class="wx-badge" id="wx-badge" onclick="toggleWeatherMode()" title="Tippen für ideales Wetter">
+    <span class="live-dot" id="wx-dot"></span>
+    <span id="wx-text">Laden…</span>
   </div>
 </div>
 
@@ -857,10 +874,41 @@ let weather = {
   temp: null,
   desc: null,
   emoji: '☀️',
-  cloudCover: 0,      // 0-100%
+  cloudCover: 0,
   isRaining: false,
-  sunIntensity: 1.0   // 0.0-1.0 multiplier for sun highlight
+  sunIntensity: 1.0
 };
+let weatherIdealMode = false;
+
+function toggleWeatherMode() {
+  weatherIdealMode = !weatherIdealMode;
+  const badge = document.getElementById('wx-badge');
+  const dot   = document.getElementById('wx-dot');
+  const text  = document.getElementById('wx-text');
+
+  if (weatherIdealMode) {
+    badge.classList.add('ideal');
+    text.textContent = '✦ Ideales Wetter';
+  } else {
+    badge.classList.remove('ideal');
+    updateWeatherBadge();
+  }
+  scheduleRender();
+}
+
+function updateWeatherBadge() {
+  const text = document.getElementById('wx-text');
+  if (weather.temp !== null) {
+    text.textContent = `${weather.temp}°C · ${weather.emoji} ${weather.desc}`;
+  } else {
+    text.textContent = '☀️ Winterthur';
+  }
+}
+
+function getEffectiveSunIntensity() {
+  if (weatherIdealMode) return 1.0;
+  return weather.sunIntensity;
+}
 
 async function loadWeather() {
   try {
@@ -907,9 +955,8 @@ async function loadWeather() {
       weather.sunIntensity = 1.0;
     }
 
-    // Update badge
-    const badge = document.querySelector('.wx-badge span:last-child');
-    if (badge) badge.textContent = `${weather.temp}°C · ${emoji} ${desc}`;
+    // Update badge (only if not in ideal mode)
+    if (!weatherIdealMode) updateWeatherBadge();
 
     // Re-render with new weather
     scheduleRender();
@@ -1270,7 +1317,7 @@ function render() {
   if (sunHighlightOn) {
     // Apply weather cloud cover to sun intensity
     const baseA = altDeg > 35 ? 0.50 : altDeg > 20 ? 0.40 : altDeg > 8 ? 0.30 : 0.18;
-    const a = baseA * weather.sunIntensity;
+    const a = baseA * getEffectiveSunIntensity();
     const s = new OffscreenCanvas(W,H);
     const sc = s.getContext('2d');
     sc.fillStyle = `rgba(255,222,20,${a.toFixed(3)})`;
@@ -1289,7 +1336,7 @@ function render() {
   // Overcast/rain = shadows much softer (diffuse light)
   if (shadowsOn) {
     const baseA = altDeg > 35 ? 0.72 : altDeg > 20 ? 0.62 : altDeg > 10 ? 0.52 : 0.40;
-    const a = baseA * Math.max(0.15, weather.sunIntensity);
+    const a = baseA * Math.max(0.15, getEffectiveSunIntensity());
     const t = new OffscreenCanvas(W,H);
     const tc = t.getContext('2d');
     tc.fillStyle = `rgba(12,20,75,${a})`;
@@ -1300,11 +1347,11 @@ function render() {
   }
 
   // ── STEP 3: Weather overlay ───────────────────────────────────────────
-  // Overcast → grey tint, Rain → blue-grey tint
-  if (weather.isRaining && altDeg > -8) {
+  // Overcast → grey tint, Rain → blue-grey tint (skipped in ideal mode)
+  if (!weatherIdealMode && weather.isRaining && altDeg > -8) {
     ctx.fillStyle = 'rgba(80,100,130,0.18)';
     ctx.fillRect(0,0,W,H);
-  } else if (weather.cloudCover >= 80 && altDeg > -8) {
+  } else if (!weatherIdealMode && weather.cloudCover >= 80 && altDeg > -8) {
     const cloudA = ((weather.cloudCover - 80) / 20) * 0.12;
     ctx.fillStyle = `rgba(100,110,130,${cloudA.toFixed(3)})`;
     ctx.fillRect(0,0,W,H);
@@ -1409,6 +1456,9 @@ setInterval(() => {
 }, 1000);
 
 // Load and go
+// Set initial badge text before weather loads
+document.getElementById('wx-text').textContent = '☀️ Winterthur';
+
 Promise.allSettled([
   loadBuildings(),
   loadTrees(),
