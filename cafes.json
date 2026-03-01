@@ -3,19 +3,6 @@
   "elements": [
     {
       "type": "node",
-      "id": 3373091672,
-      "lat": 47.4964388,
-      "lon": 8.7189114,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Cafeteria",
-        "indoor_seating": "yes",
-        "outdoor_seating": "no",
-        "wheelchair": "yes"
-      }
-    },
-    {
-      "type": "node",
       "id": 564670033,
       "lat": 47.499378,
       "lon": 8.7219049,
@@ -104,17 +91,6 @@
         "opening_hours": "Mo-Sa 09:00-24:00",
         "outdoor_seating": "yes",
         "wheelchair": "limited"
-      }
-    },
-    {
-      "type": "node",
-      "id": 687625761,
-      "lat": 47.5000603,
-      "lon": 8.7285738,
-      "tags": {
-        "amenity": "cafe",
-        "name": "LoiMy",
-        "opening_hours": "Mo-Sa 11:00-18:00"
       }
     },
     {
@@ -441,18 +417,6 @@
         "name": "Hi & Da",
         "outdoor_seating": "no",
         "website": "http://www.hiundda.ch"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1010,
-      "lat": 47.498491,
-      "lon": 8.732043,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Roxy Vinyl Cafe (2)",
-        "outdoor_seating": "no",
-        "website": "http://roxycafe.ch"
       }
     },
     {
