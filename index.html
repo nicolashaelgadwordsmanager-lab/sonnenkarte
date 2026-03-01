@@ -1939,6 +1939,7 @@ function pointInPolygon(px, py, ring) {
 
 function minutesOfSunRemaining(lat, lng) {
   // Step forward in 5-minute increments until point enters shadow or sunset
+  // Uses isPointInSunAtTime() — never touches the slider
   const dt = getDateTime();
   const pos0 = SunCalc.getPosition(dt, LAT, LNG);
   if (R2D(pos0.altitude) < 1) return 0;
@@ -1952,16 +1953,51 @@ function minutesOfSunRemaining(lat, lng) {
     const testDt = new Date(dt.getTime() + extra * 60000);
     const testPos = SunCalc.getPosition(testDt, LAT, LNG);
     if (R2D(testPos.altitude) < 1) return extra - 5;
-
-    // Temporarily shift time to test shadow
-    const origVal = document.getElementById('time-slider').value;
-    document.getElementById('time-slider').value = currentMins + extra;
-    const inSun = isPointInSun(lat, lng);
-    document.getElementById('time-slider').value = origVal;
-
-    if (!inSun) return extra - 5;
+    if (!isPointInSunAtTime(lat, lng, testDt)) return extra - 5;
   }
-  return sunsetMins - currentMins; // sun until sunset
+  return sunsetMins - currentMins;
+}
+
+function isPointInSunAtTime(lat, lng, dt) {
+  // Same as isPointInSun but uses a provided datetime — never touches slider
+  const pos = SunCalc.getPosition(dt, LAT, LNG);
+  const altDeg = R2D(pos.altitude);
+  if (altDeg < 1) return false;
+
+  const azCompass = (R2D(pos.azimuth) + 180 + 360) % 360;
+  const shadowDir = (azCompass + 180) % 360;
+  const mult = Math.min(1 / Math.tan(Math.max(pos.altitude, D2R(1))), 20);
+  const sunDirRad = D2R(shadowDir);
+  const sdx = Math.sin(sunDirRad);
+  const sdy = -Math.cos(sunDirRad);
+
+  for (const bld of buildings) {
+    const shadowLen = bld.h * mult;
+    if (shadowLen < 0.5) continue;
+    const ring = bld.ring;
+    const n = ring.length;
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[j];
+      const ex = x2 - x1, ey = y2 - y1;
+      const nx = ey, ny = -ex;
+      const dot = nx * sdx + ny * sdy;
+      if (dot >= 0) continue;
+
+      const meterPerDeg = 111320;
+      const offsetLat = (sdy * shadowLen) / meterPerDeg;
+      const offsetLng = (sdx * shadowLen) / (meterPerDeg * Math.cos(D2R(lat)));
+      const x3 = x2 + offsetLng, y3 = y2 + offsetLat;
+      const x4 = x1 + offsetLng, y4 = y1 + offsetLat;
+
+      if (pointInTriangle(lng, lat, x1,y1, x2,y2, x3,y3) ||
+          pointInTriangle(lng, lat, x1,y1, x3,y3, x4,y4)) return false;
+    }
+    if (pointInPolygon(lng, lat, ring)) return false;
+  }
+  return true;
 }
 
 function getSunQuality() {
