@@ -1803,8 +1803,8 @@ let cafesOn = false;
 let cafeLayerGroup = null;
 
 async function loadCafes() {
-  // Altstadt + 100m buffer bounding box
-  const CAFE_BBOX = '47.490,8.718,47.504,8.736';
+  // cafes.json = curated + OSM data, hosted on GitHub
+  const CAFE_BBOX = '47.488,8.715,47.506,8.738';
   const sources = [
     'cafes.json',
     'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(
@@ -1834,7 +1834,7 @@ async function loadCafes() {
           website: t.website || t['contact:website'] || null,
         });
       }
-      console.log('Cafés loaded:', cafes.length);
+      console.log('Cafés loaded:', cafes.length, 'from', src.substring(0,40));
       break;
     } catch(e) { console.warn('Café source failed:', e.message); }
   }
