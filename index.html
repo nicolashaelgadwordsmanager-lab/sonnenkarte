@@ -562,6 +562,56 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
   border-color: rgba(245,158,11,0.5);
 }
 
+/* Café button */
+#cafe-btn.active {
+  border-color: rgba(251,146,60,0.7);
+}
+#cafe-btn.active .btn-name { color: #fb923c; }
+#cafe-btn.active .btn-state { color: rgba(251,146,60,0.7); }
+
+/* Café popup */
+.cafe-popup {
+  background: rgba(12,14,24,0.97) !important;
+  border: 1.5px solid rgba(255,255,255,0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  padding: 0 !important;
+  font-family: 'Outfit', sans-serif !important;
+  min-width: 180px;
+}
+.cafe-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.cafe-popup .leaflet-popup-content {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  color: #EEF2FF;
+}
+.cafe-popup .leaflet-popup-tip-container { display: none; }
+.cafe-popup-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #EEF2FF;
+}
+.cafe-popup-sun {
+  font-size: 0.75rem;
+  color: #F59E0B;
+  font-weight: 500;
+}
+.cafe-popup-shadow {
+  font-size: 0.75rem;
+  color: #6B7BAE;
+}
+.cafe-popup-hours {
+  font-size: 0.65rem;
+  color: #5A6480;
+  margin-top: 3px;
+}
+
 /* GPS button active state */
 #gps-btn.active {
   border-color: rgba(74,222,128,0.6);
@@ -762,6 +812,13 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
     <div class="btn-text">
       <span class="btn-name">Bäume & Wald</span>
       <span class="btn-state" id="tree-state">Aus</span>
+    </div>
+  </button>
+  <button class="layer-btn" id="cafe-btn" onclick="toggleCafes()">
+    <span class="btn-icon">☕</span>
+    <div class="btn-text">
+      <span class="btn-name">Cafés</span>
+      <span class="btn-state" id="cafe-state">Aus</span>
     </div>
   </button>
   <button class="layer-btn" id="gps-btn" onclick="toggleGPS()">
@@ -1522,6 +1579,7 @@ function update() {
   document.getElementById('sun-sub').innerHTML = `${sub} · <span id="clock">${clockEl ? clockEl.textContent : '--:--'}</span> Uhr`;
 
   scheduleRender();
+  if (cafesOn) renderCafeMarkers();
 }
 
 // ── LIVE MODE ─────────────────────────────────────────
@@ -1610,7 +1668,8 @@ updateSunButtonIcon();
 Promise.allSettled([
   loadBuildings(),
   loadTrees(),
-  loadWeather()
+  loadWeather(),
+  loadCafes()
 ]).then(() => {
   document.getElementById('loading').classList.add('gone');
   positionLayerBtns();
@@ -1619,6 +1678,234 @@ Promise.allSettled([
 
 // Refresh weather every 15 minutes
 setInterval(loadWeather, 15 * 60 * 1000);
+
+// ── CAFÉS ─────────────────────────────────────────────
+let cafes = [];
+let cafeMarkers = [];
+let cafesOn = false;
+let cafeLayerGroup = null;
+
+async function loadCafes() {
+  // Altstadt + 100m buffer bounding box
+  const CAFE_BBOX = '47.490,8.718,47.504,8.736';
+  const sources = [
+    'cafes.json',
+    'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(
+      `[out:json][timeout:30];(node["amenity"="cafe"](${CAFE_BBOX});way["amenity"="cafe"](${CAFE_BBOX}););out center body qt;`
+    ),
+    'https://overpass.kumi.systems/api/interpreter?data=' + encodeURIComponent(
+      `[out:json][timeout:30];(node["amenity"="cafe"](${CAFE_BBOX});way["amenity"="cafe"](${CAFE_BBOX}););out center body qt;`
+    ),
+  ];
+
+  for (const src of sources) {
+    try {
+      const resp = await fetch(src);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (!data?.elements?.length) continue;
+      for (const el of data.elements) {
+        const lat = el.lat || el.center?.lat;
+        const lng = el.lon || el.center?.lon;
+        if (!lat || !lng) continue;
+        const t = el.tags || {};
+        cafes.push({
+          lat, lng,
+          name: t.name || 'Café',
+          hours: t.opening_hours || null,
+          outdoor: t.outdoor_seating === 'yes',
+          website: t.website || t['contact:website'] || null,
+        });
+      }
+      console.log('Cafés loaded:', cafes.length);
+      break;
+    } catch(e) { console.warn('Café source failed:', e.message); }
+  }
+}
+
+function isPointInSun(lat, lng) {
+  // Check if a geo point is currently in sun or shadow
+  const dt = getDateTime();
+  const pos = SunCalc.getPosition(dt, LAT, LNG);
+  const altDeg = R2D(pos.altitude);
+  if (altDeg < 1) return false; // sun below horizon
+
+  const azCompass = (R2D(pos.azimuth) + 180 + 360) % 360;
+  const shadowDir = (azCompass + 180) % 360;
+  const mult = Math.min(1 / Math.tan(Math.max(pos.altitude, D2R(1))), 20);
+
+  // Check if any building casts shadow over this point
+  for (const bld of buildings) {
+    const shadowLen = bld.h * mult;
+    if (shadowLen < 0.5) continue;
+
+    // Check if point is inside the shadow volume of this building
+    // Shadow volume = building footprint extruded in shadow direction
+    const ring = bld.ring;
+    const n = ring.length;
+
+    // Sun direction vector
+    const sunDirRad = D2R(shadowDir);
+    const sdx = Math.sin(sunDirRad);
+    const sdy = -Math.cos(sunDirRad);
+
+    // For each silhouette edge, check if point is inside the extruded quad
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[j];
+      const ex = x2 - x1, ey = y2 - y1;
+      const nx = ey, ny = -ex;
+      const dot = nx * sdx + ny * sdy;
+      if (dot >= 0) continue; // not a shadow edge
+
+      // Extrude edge in shadow direction
+      // Convert shadow length to degrees (approx)
+      const meterPerDeg = 111320;
+      const offsetLat = (sdy * shadowLen) / meterPerDeg;
+      const offsetLng = (sdx * shadowLen) / (meterPerDeg * Math.cos(D2R(lat)));
+      const x3 = x2 + offsetLng, y3 = y2 + offsetLat;
+      const x4 = x1 + offsetLng, y4 = y1 + offsetLat;
+
+      // Point in quad check (two triangles)
+      if (pointInTriangle(lng, lat, x1,y1, x2,y2, x3,y3) ||
+          pointInTriangle(lng, lat, x1,y1, x3,y3, x4,y4)) {
+        return false; // in shadow
+      }
+    }
+
+    // Also check if point is inside building footprint itself
+    if (pointInPolygon(lng, lat, ring)) return false;
+  }
+  return true; // in sun
+}
+
+function pointInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+  const d1 = (px-bx)*(ay-by) - (ax-bx)*(py-by);
+  const d2 = (px-cx)*(by-cy) - (bx-cx)*(py-cy);
+  const d3 = (px-ax)*(cy-ay) - (cx-ax)*(py-ay);
+  const hasNeg = (d1<0)||(d2<0)||(d3<0);
+  const hasPos = (d1>0)||(d2>0)||(d3>0);
+  return !(hasNeg && hasPos);
+}
+
+function pointInPolygon(px, py, ring) {
+  let inside = false;
+  for (let i=0, j=ring.length-1; i<ring.length; j=i++) {
+    const [xi, yi] = [ring[i][1], ring[i][0]];
+    const [xj, yj] = [ring[j][1], ring[j][0]];
+    if (((yi>py) !== (yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside = !inside;
+  }
+  return inside;
+}
+
+function minutesOfSunRemaining(lat, lng) {
+  // Step forward in 5-minute increments until point enters shadow or sunset
+  const dt = getDateTime();
+  const pos0 = SunCalc.getPosition(dt, LAT, LNG);
+  if (R2D(pos0.altitude) < 1) return 0;
+
+  const times = SunCalc.getTimes(dt, LAT, LNG);
+  const sunset = times.sunset;
+  const currentMins = dt.getHours() * 60 + dt.getMinutes();
+  const sunsetMins = sunset.getHours() * 60 + sunset.getMinutes();
+
+  for (let extra = 5; extra <= (sunsetMins - currentMins); extra += 5) {
+    const testDt = new Date(dt.getTime() + extra * 60000);
+    const testPos = SunCalc.getPosition(testDt, LAT, LNG);
+    if (R2D(testPos.altitude) < 1) return extra - 5;
+
+    // Temporarily shift time to test shadow
+    const origVal = document.getElementById('time-slider').value;
+    document.getElementById('time-slider').value = currentMins + extra;
+    const inSun = isPointInSun(lat, lng);
+    document.getElementById('time-slider').value = origVal;
+
+    if (!inSun) return extra - 5;
+  }
+  return sunsetMins - currentMins; // sun until sunset
+}
+
+function buildCafePopup(cafe) {
+  const inSun = isPointInSun(cafe.lat, cafe.lng);
+  let sunHtml = '';
+  if (inSun) {
+    const mins = minutesOfSunRemaining(cafe.lat, cafe.lng);
+    if (mins <= 0) {
+      sunHtml = `<div class="cafe-popup-shadow">☁️ Gerade im Schatten</div>`;
+    } else if (mins < 60) {
+      sunHtml = `<div class="cafe-popup-sun">☀️ Noch ~${mins} Min. Sonne</div>`;
+    } else {
+      const h = Math.floor(mins/60), m = mins%60;
+      sunHtml = `<div class="cafe-popup-sun">☀️ Noch ~${h}h${m>0?' '+m+'min':''} Sonne</div>`;
+    }
+  } else {
+    sunHtml = `<div class="cafe-popup-shadow">🌑 Aktuell im Schatten</div>`;
+  }
+
+  const hoursHtml = cafe.hours
+    ? `<div class="cafe-popup-hours">🕐 ${cafe.hours}</div>` : '';
+  const outdoorHtml = cafe.outdoor
+    ? `<div class="cafe-popup-hours">🪑 Aussenbereich</div>` : '';
+
+  return `<div class="cafe-popup-name">${cafe.name}</div>${sunHtml}${hoursHtml}${outdoorHtml}`;
+}
+
+function renderCafeMarkers() {
+  if (cafeLayerGroup) {
+    cafeLayerGroup.clearLayers();
+    cafeLayerGroup = null;
+  }
+  if (!cafesOn || cafes.length === 0) return;
+
+  cafeLayerGroup = L.layerGroup().addTo(map);
+
+  for (const cafe of cafes) {
+    const inSun = isPointInSun(cafe.lat, cafe.lng);
+
+    // Custom marker icon
+    const color = inSun ? '#F59E0B' : '#3B4A7A';
+    const borderColor = inSun ? '#FDE68A' : '#5A6480';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:28px;height:28px;
+        background:${color};
+        border:2px solid ${borderColor};
+        border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        box-shadow:0 2px 8px rgba(0,0,0,0.4);
+        display:flex;align-items:center;justify-content:center;
+      "><span style="transform:rotate(45deg);font-size:12px;line-height:1;">☕</span></div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+      popupAnchor: [0, -30],
+    });
+
+    const marker = L.marker([cafe.lat, cafe.lng], { icon })
+      .bindPopup(buildCafePopup(cafe), {
+        className: 'cafe-popup',
+        maxWidth: 220,
+        autoPan: false,
+      });
+
+    // Update popup on open (recalculate sun)
+    marker.on('popupopen', () => {
+      marker.getPopup().setContent(buildCafePopup(cafe));
+    });
+
+    cafeLayerGroup.addLayer(marker);
+  }
+}
+
+function toggleCafes() {
+  cafesOn = !cafesOn;
+  const btn = document.getElementById('cafe-btn');
+  const state = document.getElementById('cafe-state');
+  btn.classList.toggle('active', cafesOn);
+  state.textContent = cafesOn ? 'Ein' : 'Aus';
+  renderCafeMarkers();
+}
 
 // ── GPS / STANDORT ───────────────────────────────────
 let gpsActive = false;
