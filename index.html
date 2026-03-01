@@ -1567,9 +1567,28 @@ function update() {
   else if (altDeg <  -6) { emoji='🌌'; label='Dämmerung';         sub='Kein direktes Licht'; }
   else if (altDeg <   0) { emoji='🌅'; label='Dämmerung';          sub='Diffuses Licht'; }
   else if (altDeg <   6) { emoji='🌄'; label='Auf-/Untergang';     sub='Sehr lange Schatten'; }
-  else if (altDeg <  20) { emoji='🌤️'; label='Tiefe Sonne';        sub='Lange Schatten'; }
-  else if (altDeg <  40) { emoji='☀️'; label='Gute Sonne';          sub='Moderate Schatten'; }
-  else                   { emoji='🌞'; label='Hochsonne';           sub='Kaum Schatten'; }
+  else {
+    // Sun is up — apply weather cloud cover
+    const cc = weather.cloudCover;
+    if (weather.isRaining) {
+      emoji='🌧️'; label='Regen'; sub='Kein direktes Licht';
+    } else if (cc >= 95) {
+      emoji='☁️'; label='Bedeckt'; sub='Kein direktes Licht';
+    } else if (cc >= 80) {
+      emoji='🌥️'; label='Stark bewölkt'; sub='Kaum Sonnenlicht';
+    } else if (cc >= 60) {
+      emoji='⛅'; label='Bewölkt'; sub='Wenig Sonne';
+    } else if (cc >= 40) {
+      emoji='🌤️'; label='Teilweise bewölkt'; sub='Teilweise Sonne';
+    } else if (cc >= 20) {
+      emoji=altDeg > 30 ? '☀️' : '🌤️'; label='Leicht bewölkt'; sub='Gute Sonne';
+    } else {
+      // Clear sky — use sun elevation
+      if      (altDeg <  20) { emoji='🌤️'; label='Tiefe Sonne';  sub='Lange Schatten'; }
+      else if (altDeg <  40) { emoji='☀️';  label='Gute Sonne';   sub='Moderate Schatten'; }
+      else                   { emoji='🌞';  label='Hochsonne';    sub='Kaum Schatten'; }
+    }
+  }
 
   document.getElementById('sun-emoji-big').textContent = emoji;
   document.getElementById('sun-label').textContent = label;
@@ -1826,21 +1845,40 @@ function minutesOfSunRemaining(lat, lng) {
   return sunsetMins - currentMins; // sun until sunset
 }
 
+function getSunQuality() {
+  // Returns object with label, emoji, color based on geometry + weather combined
+  const cc = weather.cloudCover;
+  if (weather.isRaining)  return { label: 'Kein direktes Licht', emoji: '🌧️', color: '#6B7BAE', sunny: false };
+  if (cc >= 95)           return { label: 'Kein direktes Licht', emoji: '☁️',  color: '#6B7BAE', sunny: false };
+  if (cc >= 80)           return { label: 'Kaum Sonne',          emoji: '🌥️',  color: '#8A9BC4', sunny: true, intensity: 0.15 };
+  if (cc >= 60)           return { label: 'Wenig Sonne',         emoji: '⛅',  color: '#A0944A', sunny: true, intensity: 0.35 };
+  if (cc >= 40)           return { label: 'Teilweise Sonne',     emoji: '🌤️',  color: '#C4A832', sunny: true, intensity: 0.55 };
+  if (cc >= 20)           return { label: 'Gute Sonne',          emoji: '☀️',  color: '#F0B429', sunny: true, intensity: 0.75 };
+  return                         { label: 'Viel Sonne',          emoji: '☀️',  color: '#F59E0B', sunny: true, intensity: 1.0  };
+}
+
 function buildCafePopup(cafe) {
   const inSun = isPointInSun(cafe.lat, cafe.lng);
+  const sunQ = getSunQuality();
   let sunHtml = '';
-  if (inSun) {
+
+  if (!sunQ.sunny) {
+    // Weather already blocks all direct light — no point checking geometry
+    sunHtml = `<div class="cafe-popup-shadow">${sunQ.emoji} ${sunQ.label}</div>`;
+  } else if (!inSun) {
+    // Geometrically in building shadow (and weather is clear enough to matter)
+    sunHtml = `<div class="cafe-popup-shadow">🏢 Im Gebäudeschatten</div>`;
+  } else {
+    // In sun + weather allows some sun
     const mins = minutesOfSunRemaining(cafe.lat, cafe.lng);
+    let timeStr = '';
     if (mins <= 0) {
       sunHtml = `<div class="cafe-popup-shadow">☁️ Gerade im Schatten</div>`;
-    } else if (mins < 60) {
-      sunHtml = `<div class="cafe-popup-sun">☀️ Noch ~${mins} Min. Sonne</div>`;
     } else {
-      const h = Math.floor(mins/60), m = mins%60;
-      sunHtml = `<div class="cafe-popup-sun">☀️ Noch ~${h}h${m>0?' '+m+'min':''} Sonne</div>`;
+      if (mins < 60) timeStr = `~${mins} Min.`;
+      else { const h=Math.floor(mins/60),m=mins%60; timeStr=`~${h}h${m>0?' '+m+'min':''}`; }
+      sunHtml = `<div class="cafe-popup-sun" style="color:${sunQ.color}">${sunQ.emoji} ${sunQ.label} · noch ${timeStr}</div>`;
     }
-  } else {
-    sunHtml = `<div class="cafe-popup-shadow">🌑 Aktuell im Schatten</div>`;
   }
 
   const hoursHtml = cafe.hours
@@ -1862,10 +1900,14 @@ function renderCafeMarkers() {
 
   for (const cafe of cafes) {
     const inSun = isPointInSun(cafe.lat, cafe.lng);
+    const sunQ = getSunQuality();
+    // If weather blocks all light, geometry doesn't matter
+    const effectivelySunny = sunQ.sunny && inSun;
 
-    // Custom marker icon
-    const color = inSun ? '#F59E0B' : '#3B4A7A';
-    const borderColor = inSun ? '#FDE68A' : '#5A6480';
+    // Custom marker icon — color based on geometry + weather
+    // Weather overrides geometry for marker color too
+    const color = (!sunQ.sunny) ? '#4A5270' : effectivelySunny ? sunQ.color : '#3B4A7A';
+    const borderColor = (!sunQ.sunny) ? '#5A6480' : effectivelySunny ? '#FDE68A' : '#5A6480';
     const icon = L.divIcon({
       className: '',
       html: `<div style="
