@@ -652,11 +652,8 @@ min-width: 200px;
 z-index: 1000 !important;
 position: relative !important;
 }
-/* Force Leaflet popup pane above shadow canvas */
-.leaflet-popup-pane {
-z-index: 700 !important;
-isolation: isolate;
-}
+/* Shadow canvas z-index:10 — popup must be well above it */
+.leaflet-popup-pane { z-index: 9999 !important; }
 .cafe-popup .leaflet-popup-content-wrapper {
 background: transparent !important;
 border-radius: 12px !important;
@@ -1717,7 +1714,16 @@ function update() {
   document.getElementById('sun-sub').innerHTML = `${sub} · <span id="clock">${clockEl ? clockEl.textContent : '--:--'}</span> Uhr`;
 
   scheduleRender();
-  if (cafesOn) renderCafeMarkers();
+  if (cafesOn) {
+    // Throttle café re-render to avoid blocking slider
+    if (!window._cafeRenderPending) {
+      window._cafeRenderPending = true;
+      requestAnimationFrame(() => {
+        renderCafeMarkers();
+        window._cafeRenderPending = false;
+      });
+    }
+  }
 }
 
 // ── LIVE MODE ─────────────────────────────────────────
@@ -1820,6 +1826,7 @@ setInterval(loadWeather, 15 * 60 * 1000);
 // ── CAFÉS ─────────────────────────────────────────────
 let cafes = [];
 let cafeMarkers = [];
+let cafeMarkerObjects = [];
 let cafesOn = false;
 let cafeLayerGroup = null;
 
@@ -2064,60 +2071,56 @@ function buildCafePopup(cafe) {
   return `<div class="cafe-popup-name">${cafe.name}</div>${sunHtml}${hoursHtml}${outdoorHtml}`;
 }
 
+function makeCafeIcon(sunny, color) {
+  const borderColor = sunny ? '#FDE68A' : '#5A6480';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;background:${color};border:2px solid ${borderColor};border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:12px;line-height:1;">☕</span></div>`,
+    iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -30],
+  });
+}
+
 function renderCafeMarkers() {
-  if (cafeLayerGroup) {
-    cafeLayerGroup.clearLayers();
-    cafeLayerGroup = null;
+  if (!cafesOn || cafes.length === 0) {
+    if (cafeLayerGroup) { cafeLayerGroup.clearLayers(); cafeLayerGroup = null; }
+    cafeMarkerObjects = [];
+    return;
   }
-  if (!cafesOn || cafes.length === 0) return;
 
-  cafeLayerGroup = L.layerGroup().addTo(map);
+  const sunQ = getSunQuality();
 
-  for (const cafe of cafes) {
-    const inSun = isPointInSun(cafe.lat, cafe.lng);
-    const sunQ = getSunQuality();
-    // If weather blocks all light, geometry doesn't matter
-    const effectivelySunny = sunQ.sunny && inSun;
+  // First call — create all markers once
+  if (cafeMarkerObjects.length === 0) {
+    if (!cafeLayerGroup) cafeLayerGroup = L.layerGroup().addTo(map);
 
-    // Custom marker icon — color based on geometry + weather
-    // Weather overrides geometry for marker color too
-    const color = (!sunQ.sunny) ? '#4A5270' : effectivelySunny ? sunQ.color : '#3B4A7A';
-    const borderColor = (!sunQ.sunny) ? '#5A6480' : effectivelySunny ? '#FDE68A' : '#5A6480';
-    const icon = L.divIcon({
-      className: '',
-      html: `<div style="
-        width:28px;height:28px;
-        background:${color};
-        border:2px solid ${borderColor};
-        border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        box-shadow:0 2px 8px rgba(0,0,0,0.4);
-        display:flex;align-items:center;justify-content:center;
-      "><span style="transform:rotate(45deg);font-size:12px;line-height:1;">☕</span></div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -30],
-    });
+    for (const cafe of cafes) {
+      const inSun = isPointInSun(cafe.lat, cafe.lng);
+      const effectivelySunny = inSun && sunQ.sunny;
+      const color = !sunQ.sunny ? '#4A5270' : effectivelySunny ? sunQ.color : '#3B4A7A';
 
-    const marker = L.marker([cafe.lat, cafe.lng], { icon })
-      .bindPopup(buildCafePopup(cafe), {
-        className: 'cafe-popup',
-        maxWidth: 220,
-        autoPan: false,
+      const marker = L.marker([cafe.lat, cafe.lng], { icon: makeCafeIcon(effectivelySunny, color) })
+        .bindPopup('', { className: 'cafe-popup', maxWidth: 240, autoPan: true, autoPanPadding: [20, 20] });
+
+      marker.on('popupopen', () => {
+        marker.getPopup().setContent(buildCafePopupFast(cafe));
+        setTimeout(() => marker.getPopup().setContent(buildCafePopup(cafe)), 80);
       });
 
-    // On open: show fast version first, then calculate minutes async
-    marker.on('popupopen', () => {
-      marker.getPopup().setContent(buildCafePopupFast(cafe));
-      // Calculate minutes in next tick so popup renders immediately
-      setTimeout(() => {
-        marker.getPopup().setContent(buildCafePopup(cafe));
-      }, 50);
-    });
+      cafeLayerGroup.addLayer(marker);
+      cafeMarkerObjects.push({ marker, cafe });
+    }
+    return;
+  }
 
-    cafeLayerGroup.addLayer(marker);
+  // Subsequent calls — just update icon colors, no DOM rebuild
+  for (const { marker, cafe } of cafeMarkerObjects) {
+    const inSun = isPointInSun(cafe.lat, cafe.lng);
+    const effectivelySunny = inSun && sunQ.sunny;
+    const color = !sunQ.sunny ? '#4A5270' : effectivelySunny ? sunQ.color : '#3B4A7A';
+    marker.setIcon(makeCafeIcon(effectivelySunny, color));
   }
 }
+
 
 function toggleCafes() {
   cafesOn = !cafesOn;
@@ -2125,7 +2128,12 @@ function toggleCafes() {
   const state = document.getElementById('cafe-state');
   btn.classList.toggle('active', cafesOn);
   state.textContent = cafesOn ? 'Ein' : 'Aus';
-  renderCafeMarkers();
+  if (!cafesOn) {
+    if (cafeLayerGroup) { cafeLayerGroup.clearLayers(); cafeLayerGroup = null; }
+    cafeMarkerObjects = [];
+  } else {
+    renderCafeMarkers();
+  }
 }
 
 // ── GPS / STANDORT ───────────────────────────────────
