@@ -1524,12 +1524,31 @@ function update() {
   scheduleRender();
 }
 
+// ── LIVE MODE ─────────────────────────────────────────
+let liveMode = true; // starts in live mode
+
+function setLiveMode(active) {
+  liveMode = active;
+  const btn = document.getElementById('now-btn');
+  const miniBtn = document.querySelector('.mini-now-btn');
+  if (active) {
+    if (btn) btn.textContent = '⏱ Live';
+    if (miniBtn) miniBtn.textContent = 'Live';
+  } else {
+    if (btn) btn.textContent = '⏱ Jetzt';
+    if (miniBtn) miniBtn.textContent = 'Jetzt';
+  }
+}
+
 function goNow() {
   const n = new Date();
-  document.getElementById('time-slider').value = n.getHours()*60+n.getMinutes();
+  const mins = n.getHours()*60 + n.getMinutes();
+  document.getElementById('time-slider').value = mins;
+  document.getElementById('mini-time-slider').value = mins;
   const iso = n.toISOString().split('T')[0];
   document.getElementById('date-input-hidden').value = iso;
   document.getElementById('date-display').textContent = 'Heute';
+  setLiveMode(true);
   update();
 }
 
@@ -1540,10 +1559,13 @@ document.getElementById('date-input-hidden').value = iso;
 document.getElementById('date-display').textContent = 'Heute';
 document.getElementById('time-slider').value = today.getHours()*60+today.getMinutes();
 
-document.getElementById('time-slider').addEventListener('input', update);
+document.getElementById('time-slider').addEventListener('input', () => {
+  setLiveMode(false); // user is manually controlling
+  update();
+});
 document.getElementById('mini-time-slider').addEventListener('input', () => {
-  // Sync main slider from mini slider
   document.getElementById('time-slider').value = document.getElementById('mini-time-slider').value;
+  setLiveMode(false);
   update();
 });
 
@@ -1564,9 +1586,22 @@ setInterval(() => {
   if (el) el.textContent = t;
 }, 1000);
 
+// Auto-advance slider every minute in live mode
+setInterval(() => {
+  if (liveMode) goNow();
+}, 60000);
+
+// When user returns to tab — snap to current time if in live mode
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && liveMode) goNow();
+});
+
 // Load and go
 // Set initial badge text before weather loads
 document.getElementById('wx-text').textContent = '☀️ Winterthur';
+
+// Start in live mode
+setLiveMode(true);
 
 // Set initial sun button state (state-actual = on by default)
 document.getElementById('sun-toggle').classList.add('state-actual', 'active');
