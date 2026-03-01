@@ -121,15 +121,79 @@ html, body {
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
 /* ── MAP LAYER TOGGLES (floating, left side) ─────────── */
-#layer-btns {
+#layer-panel {
   position: fixed;
   left: 12px;
   bottom: 200px;
   z-index: 100;
   display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 6px;
+  transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+#layer-btns {
+  display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
+  transition: opacity 0.25s, transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  transform-origin: left bottom;
+}
+
+#layer-panel.collapsed #layer-btns {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-20px);
+}
+
+/* The collapse toggle tab */
+#layer-collapse-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(12,14,24,0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 10px 7px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.55);
+  transition: all 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  letter-spacing: 0.05em;
+  min-height: 80px;
+}
+#layer-collapse-btn:active { opacity: 0.7; }
+#layer-collapse-btn .collapse-arrow {
+  font-size: 0.75rem;
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  writing-mode: horizontal-tb;
+}
+#layer-panel.collapsed #layer-collapse-btn .collapse-arrow {
+  transform: rotate(180deg);
+}
+#layer-panel.collapsed #layer-collapse-btn {
+  color: var(--amber);
+  border-color: rgba(245,158,11,0.4);
+}
+#layer-collapse-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
 }
 
 .layer-btn {
@@ -788,7 +852,8 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 </div>
 
 <!-- LAYER TOGGLE BUTTONS -->
-<div id="layer-btns">
+<div id="layer-panel">
+  <div id="layer-btns">
   <button class="layer-btn active" id="shadow-toggle" onclick="toggleShadows()">
     <span class="btn-icon">🏢</span>
     <div class="btn-text">
@@ -828,7 +893,12 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
       <span class="btn-state" id="gps-state">Aus</span>
     </div>
   </button>
-</div>
+  </div><!-- /layer-btns -->
+  <button id="layer-collapse-btn" onclick="toggleLayerPanel()">
+    <span class="collapse-arrow">‹</span>
+    <span id="layer-collapse-label">Filter</span>
+  </button>
+</div><!-- /layer-panel -->
 
 <!-- INFO PILL (desktop) -->
 <div id="info-pill">
@@ -970,18 +1040,28 @@ function movePoint(lat, lng, bearingDeg, meters) {
 // ── LAYER BUTTON POSITIONING ──────────────────────────
 function positionLayerBtns() {
   const sheet    = document.getElementById('sheet');
-  const btns     = document.getElementById('layer-btns');
+  const panel    = document.getElementById('layer-panel');
   const isMobile = window.innerWidth < 640;
   const collapsed = sheet.classList.contains('collapsed');
 
   let offset;
   if (isMobile && collapsed) {
-    // mini slider strip height (108px) + safe margin
     offset = 108 + 16;
   } else {
     offset = sheet.offsetHeight + 12;
   }
-  btns.style.bottom = offset + 'px';
+  panel.style.bottom = offset + 'px';
+}
+
+// ── LAYER PANEL COLLAPSE ──────────────────────────────
+let layerPanelCollapsed = false;
+
+function toggleLayerPanel() {
+  layerPanelCollapsed = !layerPanelCollapsed;
+  const panel = document.getElementById('layer-panel');
+  const label = document.getElementById('layer-collapse-label');
+  panel.classList.toggle('collapsed', layerPanelCollapsed);
+  label.textContent = layerPanelCollapsed ? 'Ausklappen' : 'Filter';
 }
 
 // ── SHEET COLLAPSE ─────────────────────────────────────
