@@ -739,11 +739,11 @@ input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
 
 <!-- LAYER TOGGLE BUTTONS -->
 <div id="layer-btns">
-  <button class="layer-btn" id="shadow-toggle" onclick="toggleShadows()">
+  <button class="layer-btn active" id="shadow-toggle" onclick="toggleShadows()">
     <span class="btn-icon">🏢</span>
     <div class="btn-text">
       <span class="btn-name">Schatten</span>
-      <span class="btn-state" id="shadow-state">Aus</span>
+      <span class="btn-state" id="shadow-state">Ein</span>
     </div>
   </button>
   <button class="layer-btn sun-btn" id="sun-toggle" onclick="cycleSun()">
@@ -1041,7 +1041,7 @@ async function loadWeather() {
 
 // ── BUILDINGS ─────────────────────────────────────────
 let buildings = [];
-let shadowsOn = false;
+let shadowsOn = true;
 let sunHighlightOn = true;
 
 // ── TREES & FORESTS ───────────────────────────────────
