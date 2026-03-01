@@ -1,202 +1,609 @@
 {
   "version": 0.6,
+  "generator": "Overpass API 0.7.62.10 2d4cfc48",
+  "osm3s": {
+    "timestamp_osm_base": "2026-03-01T12:10:42Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
   "elements": [
-    {
-      "type": "node",
-      "id": 1001,
-      "lat": 47.4967,
-      "lon": 8.7246,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Riva Bar",
-        "opening_hours": "Mo 08:00-00:00; Tu-We 07:00-00:00; Th-Fr 07:00-02:00; Sa 08:00-02:00",
-        "outdoor_seating": "yes",
-        "website": "https://riva-bar.ch"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1002,
-      "lat": 47.4981,
-      "lon": 8.7239,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Kafisatz",
-        "opening_hours": "Mo-We 07:00-00:00; Th 07:00-01:00; Fr 07:00-02:00; Sa 08:30-02:00",
-        "outdoor_seating": "yes",
-        "website": "https://kafisatz.ch"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1003,
-      "lat": 47.5003,
-      "lon": 8.7235,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Coalmine Bar & Café",
-        "opening_hours": "Mo-Fr 07:00-00:00; Sa 08:00-00:00; Su 09:00-22:00",
-        "outdoor_seating": "yes",
-        "website": "https://coalmine.ch"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1004,
-      "lat": 47.5012,
-      "lon": 8.7198,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Gottlieber Sweets & Coffee",
-        "opening_hours": "Mo-Fr 07:30-18:30; Sa 08:00-17:00",
-        "outdoor_seating": "yes",
-        "website": "https://gottlieber.ch"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1005,
-      "lat": 47.4990,
-      "lon": 8.7252,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Café Versa",
-        "opening_hours": "Mo-Fr 08:00-23:00; Sa 09:00-23:00",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1006,
-      "lat": 47.4975,
-      "lon": 8.7261,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Zum Hinteren Hecht",
-        "opening_hours": "Mo-Fr 09:00-00:00; Sa 10:00-00:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1007,
-      "lat": 47.4978,
-      "lon": 8.7255,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Café Alltag",
-        "opening_hours": "Tu-Fr 08:00-18:00; Sa-Su 09:00-17:00",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1008,
-      "lat": 47.4993,
-      "lon": 8.7268,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Cappuccino",
-        "opening_hours": "Mo-Fr 07:00-22:00; Sa 08:00-22:00; Su 09:00-20:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1009,
-      "lat": 47.4986,
-      "lon": 8.7231,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Hi & Da",
-        "opening_hours": "Mo-Fr 07:30-18:00; Sa 08:00-17:00",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1010,
-      "lat": 47.4971,
-      "lon": 8.7238,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Café Roxy",
-        "opening_hours": "Mo-Su 09:00-00:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1011,
-      "lat": 47.5008,
-      "lon": 8.7221,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Kafi Ziegelstei",
-        "opening_hours": "Mo-Fr 07:00-18:00; Sa 08:00-17:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1012,
-      "lat": 47.5001,
-      "lon": 8.7213,
-      "tags": {
-        "amenity": "cafe",
-        "name": "JC's HouseCafe",
-        "opening_hours": "Mo-Fr 07:30-18:00; Sa 08:00-16:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1013,
-      "lat": 47.4983,
-      "lon": 8.7274,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Augenblick",
-        "opening_hours": "Mo-Fr 08:00-18:00; Sa 09:00-17:00",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1014,
-      "lat": 47.4995,
-      "lon": 8.7281,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Café Portier",
-        "opening_hours": "Mo-Fr 08:00-18:00; Sa 09:00-17:00",
-        "outdoor_seating": "yes"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1015,
-      "lat": 47.4988,
-      "lon": 8.7263,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Tearoom Spettacolo",
-        "opening_hours": "Mo-Fr 08:00-18:30; Sa 08:00-17:00",
-        "outdoor_seating": "no"
-      }
-    },
-    {
-      "type": "node",
-      "id": 1016,
-      "lat": 47.5015,
-      "lon": 8.7178,
-      "tags": {
-        "amenity": "cafe",
-        "name": "Kraftfeld",
-        "opening_hours": "Mo-Fr 08:00-22:00; Sa 10:00-22:00",
-        "outdoor_seating": "yes",
-        "website": "https://kraftfeld.com"
-      }
-    }
+
+{
+  "type": "node",
+  "id": 3373091672,
+  "lat": 47.4964388,
+  "lon": 8.7189114,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2023-07-01",
+    "indoor_seating": "yes",
+    "name": "Cafeteria",
+    "outdoor_seating": "no",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 564670033,
+  "lat": 47.4993780,
+  "lon": 8.7219049,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2025-09-04",
+    "diet:vegan": "no",
+    "diet:vegetarian": "yes",
+    "indoor_seating": "yes",
+    "name": "Kuhn",
+    "opening_hours": "Mo-Fr 06:30-20:00; Sa 07:00-18:00; May-Oct Su 08:00-14:00; Nov-Apr Su 08:00-17:00",
+    "outdoor_seating": "yes",
+    "website": "https://baeckerei-kuhn.ch/",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 4095400139,
+  "lat": 47.4990151,
+  "lon": 8.7214453,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2026-01-22",
+    "check_date:opening_hours": "2026-01-22",
+    "indoor_seating": "yes",
+    "level": "0",
+    "name": "Gottlieber",
+    "opening_hours": "Mo-Fr 08:00-19:30; Sa 08:00-18:00; Su 09:00-17:00",
+    "outdoor_seating": "yes",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4095400166,
+  "lat": 47.5016426,
+  "lon": 8.7226017,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2023-06-27",
+    "name": "Residenz Café",
+    "opening_hours": "PH,Mo-Su 08:00-21:00"
+  }
+},
+{
+  "type": "node",
+  "id": 9972711523,
+  "lat": 47.4990964,
+  "lon": 8.7209641,
+  "tags": {
+    "amenity": "cafe",
+    "cuisine": "bubble_tea",
+    "name": "LoiMy",
+    "opening_hours": "Mo-Fr 08:00-20:00; Sa 08:00-18:00",
+    "website": "https://www.loimy-bubble-tea.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 246252799,
+  "lat": 47.4989007,
+  "lon": 8.7272644,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "1",
+    "addr:postcode": "8400",
+    "addr:street": "Spitalgasse",
+    "amenity": "cafe",
+    "check_date": "2024-12-27",
+    "check_date:opening_hours": "2024-12-27",
+    "indoor_seating": "yes",
+    "internet_access": "wlan",
+    "internet_access:fee": "no",
+    "level": "0",
+    "name": "Kafisatz",
+    "opening_hours": "Mo,We,Fr 08:00-24:00, Tu,Fr 07:00-24:00, Sa 08:30-24:00, Su 12:00-22:00",
+    "outdoor_seating": "yes",
+    "payment:credit_cards": "yes",
+    "payment:mastercard": "yes",
+    "payment:twint": "yes",
+    "payment:visa": "yes",
+    "phone": "+41 52 202 46 00",
+    "smoking": "outside",
+    "website": "https://kafisatz.ch",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 246253649,
+  "lat": 47.4998045,
+  "lon": 8.7250404,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "20",
+    "addr:postcode": "8400",
+    "addr:street": "Stadthausstrasse",
+    "amenity": "cafe",
+    "branch": "Winterthur Stadthausstrasse",
+    "check_date:opening_hours": "2025-04-08",
+    "name": "Vollenweider",
+    "opening_hours": "Mo-Fr 08:00-18:00; Sa 08:30-18:00; Su 09:00-18:00",
+    "operator": "Vollenweider Chocolatier Confiseur",
+    "shop": "confectionery",
+    "website": "https://www.vollenweiderchocolatier.ch/",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 675161654,
+  "lat": 47.4997184,
+  "lon": 8.7261232,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "121",
+    "addr:postcode": "8400",
+    "addr:street": "Stadthausstrasse",
+    "amenity": "cafe",
+    "indoor_seating": "yes",
+    "level": "0",
+    "name": "Locanda Trivisiano",
+    "opening_hours": "Mo-Sa 09:00-24:00",
+    "outdoor_seating": "yes",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 687625761,
+  "lat": 47.5000603,
+  "lon": 8.7285738,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "83",
+    "addr:postcode": "8400",
+    "addr:street": "Stadthausstrasse",
+    "amenity": "cafe",
+    "cuisine": "bubble_tea",
+    "diet:vegan": "yes",
+    "diet:vegetarian": "yes",
+    "name": "LoiMy",
+    "opening_hours": "Mo-Sa 11:00-18:00"
+  }
+},
+{
+  "type": "node",
+  "id": 687625767,
+  "lat": 47.5000686,
+  "lon": 8.7286790,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "81",
+    "addr:postcode": "8400",
+    "addr:street": "Stadthausstrasse",
+    "amenity": "cafe",
+    "cuisine": "bubble_tea",
+    "name": "LoiMy Bubble Tea",
+    "opening_hours": "We,Fr,Sa 12:00-17:00"
+  }
+},
+{
+  "type": "node",
+  "id": 709022313,
+  "lat": 47.4984079,
+  "lon": 8.7288259,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "24",
+    "addr:postcode": "8400",
+    "addr:street": "Steinberggasse",
+    "amenity": "cafe",
+    "check_date:opening_hours": "2025-08-23",
+    "cuisine": "italian",
+    "name": "Insieme",
+    "opening_hours:signed": "no",
+    "website": "https://insieme-piadineria.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 709078361,
+  "lat": 47.4989510,
+  "lon": 8.7260438,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2026-01-28",
+    "check_date:opening_hours": "2025-06-06",
+    "name": "Café Zentrum",
+    "opening_hours": "Tu-Fr 08:30-17:30; Sa 08:30-17:00",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 738947656,
+  "lat": 47.4991238,
+  "lon": 8.7277049,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "16",
+    "addr:postcode": "8400",
+    "addr:street": "Metzggasse",
+    "amenity": "cafe",
+    "check_date": "2025-11-01",
+    "check_date:opening_hours": "2025-11-01",
+    "email": "info@kaffeeleben.ch",
+    "level": "0",
+    "name": "Kaffeeleben",
+    "opening_hours": "Tu,Fr 08:00-18:00; Mo 09:00-17:00; We,Th,Sa 09:00-18:00; Su off",
+    "shop": "coffee",
+    "start_date": "2019-05",
+    "website": "https://kaffeeleben.ch/",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 1519868844,
+  "lat": 47.4997012,
+  "lon": 8.7243780,
+  "tags": {
+    "amenity": "cafe",
+    "name": "Bodega Bar",
+    "opening_hours": "Mo-We 09:00-22:30; Th-Sa 09:00-23:30; Su 10:00-21:30"
+  }
+},
+{
+  "type": "node",
+  "id": 5112759070,
+  "lat": 47.5004004,
+  "lon": 8.7250816,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2023-06-29",
+    "name": "COALMINE Café",
+    "opening_hours": "Mo-Fr 08:00-19:00; Sa 11:00-16:00",
+    "phone": "+41 52 268 68 66",
+    "website": "https://www.coalmine.ch/coalmine/cafe/"
+  }
+},
+{
+  "type": "node",
+  "id": 7503079118,
+  "lat": 47.4979542,
+  "lon": 8.7243914,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "2",
+    "addr:postcode": "8400",
+    "addr:street": "Archplatz",
+    "air_conditioning": "yes",
+    "amenity": "cafe",
+    "check_date": "2025-06-06",
+    "check_date:smoking": "2025-06-06",
+    "indoor_seating": "yes",
+    "level": "0",
+    "name": "Café Archhöfe",
+    "opening_hours": "Mo-Fr 09:00-20:00; Sa 09:00-18:00",
+    "outdoor_seating": "no",
+    "smoking": "no",
+    "website": "https://www.cafearchhoefe.ch/",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 10141182877,
+  "lat": 47.4983624,
+  "lon": 8.7236682,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "4",
+    "addr:postcode": "8400",
+    "addr:street": "Archstrasse",
+    "amenity": "cafe",
+    "description": "Zusammen mit Blumen-Café Fany, dem Florist.",
+    "name": "Blumen-Café Fany",
+    "opening_hours": "Mo-Sa 08:00-18:00",
+    "website": "https://www.blumen-cafe.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 10570538138,
+  "lat": 47.4995056,
+  "lon": 8.7283165,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "37a",
+    "addr:postcode": "8400",
+    "addr:street": "Marktgasse",
+    "amenity": "cafe",
+    "brand": "Starbucks",
+    "brand:wikidata": "Q37158",
+    "check_date": "2026-01-28",
+    "cuisine": "coffee_shop",
+    "name": "Starbucks",
+    "official_name": "Starbucks Coffee",
+    "takeaway": "yes",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 9916802629,
+  "lat": 47.4942761,
+  "lon": 8.7341936,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "52",
+    "addr:postcode": "8400",
+    "addr:street": "Zeughausstrasse",
+    "amenity": "cafe",
+    "cuisine": "regional",
+    "diet:vegetarian": "yes",
+    "internet_access": "wlan",
+    "name": "Rauke",
+    "opening_hours": "Mo-Sa 09:00-16:00",
+    "website": "https://rauke.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 247766635,
+  "lat": 47.4987667,
+  "lon": 8.7304544,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2024-12-27",
+    "check_date:opening_hours": "2024-12-27",
+    "cuisine": "coffee_shop",
+    "email": "cappuccino@cappuccino-winterthur.ch",
+    "name": "Cappucino",
+    "opening_hours": "Mo-Th 08:00-23:00; Fr,Sa 08:00-24:00",
+    "phone": "+41 52 212 23 88",
+    "website": "https://www.cappuccino-winterthur.ch/",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 282655573,
+  "lat": 47.4992488,
+  "lon": 8.7309303,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "25",
+    "addr:postcode": "8400",
+    "addr:street": "Unterer Graben",
+    "amenity": "cafe",
+    "changing_table": "yes",
+    "changing_table:count": "2",
+    "changing_table:fee": "no",
+    "changing_table:location": "male_toilet;female_toilet",
+    "indoor_seating": "yes",
+    "internet_access": "wlan",
+    "level": "0",
+    "name": "Alltag",
+    "opening_hours": "Mo-Th 07:30-24:00, Fr 07:30-01:00, Sa 08:30-01:00, Su 10:00-18:00",
+    "outdoor_seating": "yes",
+    "phone": "+41 52 202 85 42",
+    "smoking": "outside",
+    "toilets:wheelchair": "no",
+    "website": "https://alltag-cafebar.ch/",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 352831991,
+  "lat": 47.4994440,
+  "lon": 8.7325645,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "25",
+    "addr:postcode": "8400",
+    "addr:street": "Neustadtgasse",
+    "amenity": "cafe",
+    "charity": "yes",
+    "check_date": "2026-01-10",
+    "check_date:opening_hours": "2024-06-02",
+    "cuisine": "bangladeshi;momo",
+    "email": "dimensione@robis.ch",
+    "name": "Robi’s Dimensione",
+    "opening_hours": "Mo-We 09:00-21:00; Tu-Sa 09:00-22:00; Su 09:00-18:00",
+    "outdoor_seating": "yes",
+    "phone": "+41 52 212 40 14",
+    "website": "https://www.dimensione.robis.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 2795251539,
+  "lat": 47.5000859,
+  "lon": 8.7298083,
+  "tags": {
+    "amenity": "cafe",
+    "check_date": "2026-01-28",
+    "level": "0;1",
+    "name": "Versa",
+    "opening_hours": "Tu-Sa 09:00-18:00",
+    "website": "https://versa.xyz",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 2941529903,
+  "lat": 47.4991780,
+  "lon": 8.7294806,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:country": "CH",
+    "addr:housenumber": "14",
+    "addr:postcode": "8400",
+    "addr:street": "Kirchplatz",
+    "amenity": "cafe",
+    "check_date": "2026-01-28",
+    "name": "Grand Café du Musée",
+    "phone": "+41 52 267 41 59",
+    "website": "https://grandcafe-wintimomo.ch/grand-cafe"
+  }
+},
+{
+  "type": "node",
+  "id": 3275087004,
+  "lat": 47.5011816,
+  "lon": 8.7353616,
+  "tags": {
+    "access": "private",
+    "amenity": "cafe",
+    "check_date": "2024-07-15",
+    "level": "0",
+    "name": "Culinarium Museumstrasse",
+    "opening_hours": "Mo-Fr 07:30-15:30",
+    "operator": "SV Group",
+    "smoking": "no",
+    "takeaway": "yes",
+    "website": "http://culinarium-museumstrasse.sv-group.ch/"
+  }
+},
+{
+  "type": "node",
+  "id": 4081017595,
+  "lat": 47.4986758,
+  "lon": 8.7313473,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "8",
+    "addr:postcode": "8400",
+    "addr:street": "Oberer Graben",
+    "amenity": "cafe",
+    "cuisine": "regional;oriental",
+    "diet:vegan": "yes",
+    "diet:vegetarian": "yes",
+    "email": "info@emma-bb.ch",
+    "indoor_seating": "yes",
+    "internet_access": "wlan",
+    "internet_access:fee": "no",
+    "name": "EMMA Bett und Bistro",
+    "outdoor_seating": "yes",
+    "phone": "+41 52 521 37 31",
+    "website": "https://www.emma-bb.ch",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 4083411849,
+  "lat": 47.4988997,
+  "lon": 8.7295578,
+  "tags": {
+    "amenity": "cafe",
+    "name": "Lou Salomé",
+    "opening_hours": "We-Sa 10:00-17:00"
+  }
+},
+{
+  "type": "node",
+  "id": 5762237953,
+  "lat": 47.4984965,
+  "lon": 8.7321395,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "1a",
+    "addr:postcode": "8400",
+    "addr:street": "Neustadtgasse",
+    "amenity": "cafe",
+    "name": "Roxy Vinyl Cafe",
+    "opening_hours": "Tu-Th 12:00-23:00; Fr,Sa 12:00-24:00; Su 12:00-18:00"
+  }
+},
+{
+  "type": "node",
+  "id": 5995223146,
+  "lat": 47.5001836,
+  "lon": 8.7329684,
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "6",
+    "addr:postcode": "8400",
+    "addr:street": "Obertor",
+    "amenity": "cafe",
+    "name": "doode Coffee World",
+    "opening_hours": "Mo,Tu 00:00-19:00; We-Sa 08:30-22:00; Su 10:00-17:00"
+  }
+},
+{
+  "type": "way",
+  "id": 380090589,
+  "center": {
+    "lat": 47.4993652,
+    "lon": 8.7233568
+  },
+  "nodes": [
+    3834364166,
+    3834110057,
+    3834364165,
+    3834364160,
+    3834364161,
+    3834364166
+  ],
+  "tags": {
+    "addr:city": "Winterthur",
+    "addr:housenumber": "5",
+    "addr:postcode": "8400",
+    "addr:street": "Bahnhofplatz",
+    "alt_name": "Caffè Spettacolo Winterthur",
+    "amenity": "cafe",
+    "branch": "Winterthur",
+    "brand": "Caffè Spettacolo",
+    "check_date": "2025-02-10",
+    "indoor": "yes",
+    "level": "-1",
+    "name": "Caffè Spettacolo",
+    "opening_hours": "Mo-Fr 06:00-21:00; Sa 06:00-20:00; Su 07:00-20:00",
+    "operator": "Valora",
+    "website": "https://www.spettacolo.ch/"
+  }
+},
+{
+  "type": "way",
+  "id": 462596288,
+  "center": {
+    "lat": 47.5001410,
+    "lon": 8.7237635
+  },
+  "nodes": [
+    3834413060,
+    3834413063,
+    11869940243,
+    3834413062,
+    3834413059,
+    3834413060
+  ],
+  "tags": {
+    "amenity": "cafe",
+    "brand": "Starbucks",
+    "brand:wikidata": "Q37158",
+    "check_date:opening_hours": "2025-12-21",
+    "cuisine": "coffee_shop",
+    "diet:vegetarian": "yes",
+    "indoor": "yes",
+    "indoor_seating": "yes",
+    "level": "0",
+    "name": "Starbucks",
+    "official_name": "Starbucks Coffee",
+    "opening_hours": "Mo-Fr 06:00-21:30; Sa 06:30-21:30; Su 07:00-21:00",
+    "outdoor_seating": "no",
+    "smoking": "no",
+    "takeaway": "yes",
+    "wheelchair": "yes"
+  }
+}
+
   ]
 }
